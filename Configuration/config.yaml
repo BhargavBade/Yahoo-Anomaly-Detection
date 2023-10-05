@@ -1,0 +1,40 @@
+---
+Optimized: 
+  learning_rate: 
+    - float
+    - 1.0e-3
+    - 1.0e-3
+  hidden_size:
+    - categorical
+    - [20]
+
+Data:
+    dataset: sinewaves
+    subset: A3
+    task: reconstruct
+    batch_size: 64
+    batch_size_test: 1
+    batch_size_val: 1
+    worker: 0
+    scaler: minmax
+    path: "Datasets"
+    shuffle_train: False
+    
+Study:  
+  number_of_trials: 1
+  direction: minimize
+  optimization_target: TestLoss
+  study_name: LAEStudyofYahooA1
+
+Network:
+  act_function: Tanh
+  input_size: 50
+  
+Learning:
+  num_epochs: 20
+  testevery: 2
+  optimizer: Adam
+  scheduler: StepLR
+  scheduler_step: 8
+  gamma: 0.1
+  criterion: MSELoss
