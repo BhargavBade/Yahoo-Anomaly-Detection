@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     # Get Config
     config_loader = ccbdl.config_loader.loaders.ConfigurationLoader()
-    config_path = os.path.join(os.getcwd(), "Configuration", "config.yaml")
+    config_path = os.path.join(os.getcwd(), "Configuration", "config_sinewave.yaml")
     config = config_loader.read_config(config_path)
 
     # Get Configurations
@@ -33,7 +33,6 @@ if __name__ == '__main__':
     study_path = ccbdl.storages.storages.generate_train_folder(name="__" + study_config["study_name"],
                                                                generate=True,
                                                                location=os.path.dirname(os.path.realpath(__file__)))
-
     # Define Parameter Optimizer
     opti = MyOptimizer(study_config,
                        optimizer_config,

@@ -7,12 +7,12 @@ class MyAutoEncoder(BaseNetwork):
     def __init__(self, name : str, act_function : torch.nn.modules.activation, input_size:int, hidden_size : int, debug = False):
         super().__init__(name, debug)
         self.encoder = torch.nn.Sequential(nn.Linear(input_size,32),
-                                           act_function(),                                        
+                                            # act_function(),                                        
                                            nn.Linear(32, hidden_size),
                                            )
         
         self.decoder = torch.nn.Sequential(nn.Linear(hidden_size, 32),
-                                           act_function(),
+                                            # act_function(),
                                            nn.Linear(32, input_size),
                                            )
         
@@ -28,5 +28,3 @@ if __name__ == '__main__':
     print(out.shape)
     print(net)
     
-    
-    iubpoibhibpz

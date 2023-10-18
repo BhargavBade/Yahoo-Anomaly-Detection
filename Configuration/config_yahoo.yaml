@@ -9,26 +9,27 @@ Optimized:
     - [20]
 
 Data:
-    dataset: sinewaves
+    dataset: yahoo
+    subset: A3
     task: anomaly
     batch_size: 64
     worker: 0
-    scaler: minmax
+    scaler: mean
     path: "Datasets"
-    shuffle_train: True
-    shuffle_test: True
+    shuffle_train: False
+    
 Study:  
   number_of_trials: 1
   direction: minimize
   optimization_target: TestLoss
-  study_name: LAEStudyofSinewaves
+  study_name: LAEStudyofYahooA3
 
 Network:
   act_function: Tanh
-  input_size: 100
+  input_size: 50
   
 Learning:
-  num_epochs: 15
+  num_epochs: 20
   testevery: 2
   optimizer: Adam
   scheduler: StepLR

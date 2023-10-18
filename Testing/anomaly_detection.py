@@ -12,13 +12,10 @@ import os
 from ccbdl.utils import DEVICE
 from ccbdl.storages import storages
 from Data.prepare_data import prepare_data
-from Data.prepare_data_yahoo import prepare_data_yahoo
-from Data.prepare_data_sinewaves import prepare_data_sinewaves
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import classification_report, average_precision_score
 import matplotlib.pyplot as plt
 from sklearn import metrics
-# from Network.AutoEncoder_Yahoo import MyAutoEncoder
 
 class AnomalyDetection():
         
@@ -32,45 +29,12 @@ class AnomalyDetection():
         self.study_config = study_config
         self.data_config = data_config
                
-         
-        # if ('AutoEncoderStudyofYahooDataset_A1' in self.study_config["study_name"] or
-        #     'AutoEncoderStudyofYahooDataset_A2' in self.study_config["study_name"] or
-        #     'AutoEncoderStudyofYahooDataset_A3' in self.study_config["study_name"] or
-        #     'AutoEncoderStudyofYahooDataset_A4' in self.study_config["study_name"]):
-               
-        #     train_data, test_data, val_data, test_labels, val_labels, x_test = prepare_data_yahoo()
-        
-        # elif 'AutoEncoderStudyofSineWaves' in self.study_config["study_name"]:
-        #     train_data, test_data, val_data, test_labels, val_labels, x_test = prepare_data_sinewaves()
-        
-        # elif('VarAEStudyofYahooDataset_A1' in self.study_config["study_name"] or
-        #     'VarAEStudyofYahooDataset_A2' in self.study_config["study_name"] or
-        #     'VarAEStudyofYahooDataset_A3' in self.study_config["study_name"] or
-        #     'VarAEStudyofYahooDataset_A4' in self.study_config["study_name"]):
-               
-        #     train_data, test_data, val_data, test_labels, val_labels, x_test = prepare_data_yahoo()
-        
-        # else:
-        #     raise ValueError("Invalid study name.")
-        
         # get data
         train_data, test_data, val_data = prepare_data(self.data_config)
 
         self.train_data = train_data                     
         self.test_data = test_data
         self.val_data  = val_data
-        
-        # get labels
-        val_labels = []
-        test_labels = []
-        for _, (_,labels) in enumerate(self.val_data):            
-            val_labels.append(labels)
-            
-        for _, (_,labels) in enumerate(self.test_data):            
-            test_labels.append(labels)    
-        
-        self.val_labels = torch.cat(val_labels)
-        self.test_labels = torch.cat(test_labels)
         
         # For storage of results and plots    
         self.parameter_storage = storages.ParameterStorage(path)
@@ -83,8 +47,8 @@ class AnomalyDetection():
                         
     def find_threshold(self):
         
+        val_labels = []
         loss_crit = nn.MSELoss(reduction = 'none')
-        # loss_crit = nn.BCELoss(reduction = 'none')
         
         print("\n******** Finding threshold reconstruction error of the Data ********\n")                                
 
@@ -95,7 +59,7 @@ class AnomalyDetection():
         val_reconstruction_error = [] 
            
         with torch.no_grad():        
-            for _, (inp, _) in enumerate(self.val_data):                           
+            for _, (inp, labels) in enumerate(self.val_data):                           
                 # get data
                 inp = inp.to(torch.float32)
                 inp = inp.to(DEVICE)                        
@@ -112,13 +76,13 @@ class AnomalyDetection():
                 #------------------------------------------------------------------------------
                 # val_reconstruction_error.append(loss.item()) 
                 val_reconstruction_error.append(loss)
-                
+                val_labels.append(labels)
             #------------------------------------------------------------------------------------------------------ 
             v_concatenated_tensor = torch.cat(val_reconstruction_error, dim=0).to(DEVICE)  
             v_loss_array = v_concatenated_tensor.cpu().numpy()                             
+            self.val_labels = torch.cat(val_labels)
             
-            # Finding the best possible Threshold Value for Anomaly Detection  
-            
+            # Finding the best possible Threshold Value for Anomaly Detection              
             best_f1_score = 0.0
             best_threshold = 0.0
             best_y = 0
@@ -146,22 +110,20 @@ class AnomalyDetection():
         return best_threshold
     
 #------------------------------------------------------------------------------------------------- 
-
 #Testing Phase
  
     def find_anomalies(self):
         
+        self.model.eval() 
         loss_crit_test = nn.MSELoss(reduction = 'none')  
         # loss_crit_test = nn.BCELoss(reduction = 'none')  
-        
-        # self.network.eval()
-        self.model.eval()
         
         testdata_rec = []
         test_rec_error = []                 
         test_data = []
+        test_labels = []
         with torch.no_grad():
-            for _, (inp,_) in enumerate(self.test_data):                            
+            for _, (inp,labels) in enumerate(self.test_data):                            
                 # get data
                 inp = inp.to(torch.float32)
                 inp = inp.to(DEVICE)                 
@@ -177,12 +139,14 @@ class AnomalyDetection():
                 # kl_divergence_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())                
                 # loss_test = rec_loss + kl_divergence_loss
                 # #--------------------------------------------------------------------------------- 
-                test_rec_error.append(loss_test)                
-                test_data.append(inp)    
+                test_rec_error.append(loss_test)                              
+                test_data.append(inp)  
+                test_labels.append(labels) 
             self.testdata_rec = torch.cat(testdata_rec, dim = 0).to(DEVICE)
             
             # testdata_rec_array = self.testdata_rec.cpu() 
             self.test_data_tensor = torch.cat(test_data, dim = 0)
+            self.test_labels = torch.cat(test_labels)
             test_rec_error_tensor = torch.cat(test_rec_error, dim=0).to(DEVICE)                       
             threshold_val = self.threshold                                      
             anomaly = (test_rec_error_tensor > threshold_val).to(DEVICE)               

@@ -2,22 +2,15 @@ import optuna
 import datetime
 import os
 from Data.prepare_data import prepare_data
-from Data.prepare_data_yahoo import prepare_data_yahoo
-from Data.prepare_data_sinewaves import prepare_data_sinewaves
 from Learning.learn_autoencoder import LearnAutoEncoder
 from ccbdl.parameter_optimizer.optuna_base import BaseOptunaParamOptimizer
 from ccbdl import NBPATH
 from ccbdl.evaluation.additional import notebook_handler
 import time
-import yaml
 from Network.auto_encoder import MyAutoEncoder
-from Network.AutoEncoder_Yahoo import MyAutoEncoder_Yahoo
-from Network.AutoEncoder_sinewaves import MyAutoEncoder_Sinewaves
 from Network.VAE_Yahoo import MyVarAutoEncoder_Yahoo
 from ccbdl.utils import DEVICE
 import torch
-import torch.nn as nn
-import numpy as np
 from ccbdl.storages import storages
 
 class MyOptimizer(BaseOptunaParamOptimizer):
@@ -94,39 +87,6 @@ class MyOptimizer(BaseOptunaParamOptimizer):
                                     torch.nn, self.network_config["act_function"]),
                                 self.network_config["input_size"],
                                 self.network_config["hidden_size"]).to(DEVICE)
-
-        # get data
-        
-        # if ('AutoEncoderStudyofYahooDataset_A1' in self.study_config["study_name"] or
-        #     'AutoEncoderStudyofYahooDataset_A2' in self.study_config["study_name"] or
-        #     'AutoEncoderStudyofYahooDataset_A3' in self.study_config["study_name"] or
-        #     'AutoEncoderStudyofYahooDataset_A4' in self.study_config["study_name"]):
-               
-        #     train_data, test_data, val_data, test_labels, val_labels, x_test = prepare_data_yahoo()
-        #     self.network = MyAutoEncoder_Yahoo("AutoEncoder_Test",
-        #                             getattr(torch.nn, self.network_config["act_function"]),
-        #                         self.network_config["hidden_size"]).to(DEVICE)
- 
-                                           
-        # elif 'AutoEncoderStudyofSineWaves' in self.study_config["study_name"]:
-        #     train_data, test_data, val_data, test_labels, val_labels, x_test = prepare_data_sinewaves()
-        #     self.network = MyAutoEncoder_Sinewaves("AutoEncoder_Test",
-        #                             getattr(torch.nn, self.network_config["act_function"]),
-        #                         self.network_config["hidden_size"]).to(DEVICE)
-                                        
-        
-        # elif('VarAEStudyofYahooDataset_A1' in self.study_config["study_name"] or
-        #     'VarAEStudyofYahooDataset_A2' in self.study_config["study_name"] or
-        #     'VarAEStudyofYahooDataset_A3' in self.study_config["study_name"] or
-        #     'VarAEStudyofYahooDataset_A4' in self.study_config["study_name"]):
-               
-        #     train_data, test_data, val_data, test_labels, val_labels, x_test = prepare_data_yahoo()
-        #     self.network = MyVarAutoEncoder_Yahoo("VarAutoEncoder_Test",
-        #                             getattr(torch.nn, self.network_config["act_function"]),
-        #                         self.network_config["hidden_size"]).to(DEVICE)
-            
-        # else:                           
-        #     raise ValueError("Invalid study name.")
         
         print("\n\n******* Start Train AutoEncoder *******")
         self.learner = LearnAutoEncoder(trial_path,
