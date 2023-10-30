@@ -1,10 +1,3 @@
- # -*- coding: utf-8 -*-
-"""
-Created on Tue Jun 27 11:50:24 2023
-
-@author: BhargavBade
-"""
-
 import torch
 import numpy as np
 import torch.nn as nn
@@ -16,6 +9,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import classification_report, average_precision_score
 import matplotlib.pyplot as plt
 from sklearn import metrics
+from Plotting.anomaly_plot import testdata_plotting
 
 class AnomalyDetection():
         
@@ -28,7 +22,7 @@ class AnomalyDetection():
         self.testt_dataa = None
         self.study_config = study_config
         self.data_config = data_config
-               
+                                                      
         # get data
         train_data, test_data, val_data = prepare_data(self.data_config)
 
@@ -199,86 +193,13 @@ class AnomalyDetection():
             self.parameter_storage.write_tab("Classification Report", str(report))
             self.parameter_storage.write_tab("00", str(roc_str))
             self.parameter_storage.write_tab("00", str(prc_str))
+            
+            # Plotting the data and visualizing anomalies
+            testdata_plotting(path = self.path,
+                              test_data_tensor = self.test_data_tensor,   
+                              testdata_rec = self.testdata_rec, 
+                              test_labels = self.test_labels, 
+                              pred_labels =self.pred_labels, 
+                              figure_storage = self.figure_storage)
                         
         return actual_labels_tensor, pred_labels_tensor
-
-    def testdata_plotting(self):
-        
-        figs = []
-        names = []
-    
-        # Get the corresponding data, actual labels, and predicted labels
-        data_tensor = self.test_data_tensor.cpu()
-        rec_data_tensor = self.testdata_rec.cpu()
-        actual_labels = self.test_labels.cpu()
-        predicted_labels = self.pred_labels.cpu()
-            
-        # Convert tensors to numpy arrays
-        testdata = data_tensor.numpy()
-        rec_testdata = rec_data_tensor.numpy()
-        testdata_labels = actual_labels.numpy()
-        predicted_labels = predicted_labels.numpy()
-        
-        # Generate 120 random indices for plotting
-        random_indices = np.random.choice(testdata.shape[0], size=120, replace=False)
-                    
-        # Set the number of figures and subplots per figure
-        figures = 20
-        subplots_per_figure = 6        
-        
-        # Iterate over the figures
-        for f in range(figures):
-            # Create a new figure
-            fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(20, 15))
-            fig.suptitle(f"Figure {f+1}")
-            name = f"Figure {f+1}"
-        
-            # Iterate over the subplots within the figure
-            for s, ax in enumerate(axs.flat):
-                # Get the corresponding index
-                idx = f * subplots_per_figure + s
-        
-                # Get the corresponding testdata, true labels, and predicted labels
-                data = testdata[random_indices[idx]]       
-                rec_data = rec_testdata[random_indices[idx]]
-                true_labels = testdata_labels[random_indices[idx]]
-                pred_labels = predicted_labels[random_indices[idx]]
-        
-                # Flatten the data, true labels, and predicted labels
-                flat_data = data.flatten()
-                flat_rec_data = rec_data.flatten()
-                flat_true_labels = true_labels.flatten()
-                flat_pred_labels = pred_labels.flatten()
-        
-                # Highlight the values with true label 1
-                true_label_indices = np.where(flat_true_labels == 1)[0]
-                true_label_values = flat_data[true_label_indices]
-        
-                # Highlight the values with predicted label 1
-                pred_label_indices = np.where(flat_pred_labels == 1)[0]
-                pred_label_values = flat_data[pred_label_indices]
-        
-                # Plot the subplot
-                ax.plot(flat_data)
-                ax.plot(flat_rec_data)
-                ax.scatter(true_label_indices, true_label_values, color='red', label='true_labels', alpha=0.6)
-                ax.scatter(pred_label_indices, pred_label_values, color='green', marker='x', label='pred_labels', s=100 )
-                       
-                # Set legend
-                ax.legend(loc="best")
-                                
-            plt.tight_layout()
-            
-            figs.append(fig)                               
-            names.append(os.path.join("Test", "Random_Sample_" + name)) 
-            
-        self.figure_storage.store_multi(figs, names, folder="", dpis=False)
-
-    
-    
-        
-    
-        
-                
-                    
-               

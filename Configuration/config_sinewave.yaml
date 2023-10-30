@@ -28,10 +28,10 @@ Network:
   input_size: 100
   
 Learning:
-  num_epochs: 15
+  num_epochs: 30
   testevery: 2
   optimizer: Adam
   scheduler: StepLR
   scheduler_step: 8
-  gamma: 0.1
+  gamma: 0.8
   criterion: MSELoss

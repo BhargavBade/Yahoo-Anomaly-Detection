@@ -1,3 +1,8 @@
 *.pyc
 .spyproject
 00_Results
+*.yaml
+Configuration/config_sinewave.yaml
+Configuration/config_yahoo.yaml
+Configuration/config_sinewave.yaml
+Configuration/config_yahoo.yaml
