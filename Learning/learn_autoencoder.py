@@ -36,10 +36,10 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
                  debug=False,
                  **kwargs):
         super().__init__(train_data, test_data, val_data, 
-                         data_storage_names=["epoch", "batch",
-                                             "train_loss","test_loss"],
                          # data_storage_names=["epoch", "batch",
-                         #                     "train_loss", "kl_loss","test_loss"],
+                         #                     "train_loss","test_loss"],
+                          data_storage_names=["epoch", "batch",
+                                              "train_loss", "kl_loss","test_loss"],
                          path=trial_path, config=config, task=task, debug=debug)
         self.network = network
         self.trial = trial
@@ -78,31 +78,33 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
             inp = inp.to(torch.float32)
             inp = inp.to(DEVICE)
 
-            #AE network
-            reconstructions = self._decode(self._encode(inp))                        
-            # loss
-            self.loss = self.criterion(reconstructions, inp)
-            self.loss.backward() 
-            
-            # #-------------------------------------------------------------------------------------
-            # # VAE network
-            # reconstructions = self.network(inp)                       
-            # self.rec_loss = self.criterion(reconstructions, inp)
-            
-            # # Compute KL divergence loss
-            # # self.kl_divergence_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-            
-            # self.loss = self.rec_loss + self.network.kl_value*1000
+            # #AE network
+            # reconstructions = self._decode(self._encode(inp))                        
+            # # loss
+            # self.loss = self.criterion(reconstructions, inp)
             # self.loss.backward() 
-            # #-------------------------------------------------------------------------------------
+            
+            #-------------------------------------------------------------------------------------
+            # VAE network
+            reconstructions = self.network(inp)                       
+            self.rec_loss = self.criterion(reconstructions, inp)
+            
+            # Compute KL divergence loss
+            # self.kl_divergence_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            
+            self.kl_divergence_loss = self.network.kl_value
+            self.loss = self.rec_loss + self.kl_divergence_loss
+            self.loss.backward() 
+            #-------------------------------------------------------------------------------------
             
             losses+= self.loss
             self.optimizer.step()
-            self.data_storage.store(
-                [self.epoch, self.batch, self.loss,self.test_loss])
-           
+            
             # self.data_storage.store(
-            #     [self.epoch, self.batch, self.loss, self.kl_divergence_loss,self.test_loss])
+            #     [self.epoch, self.batch, self.loss,self.test_loss])
+           
+            self.data_storage.store(
+                [self.epoch, self.batch, self.loss, self.kl_divergence_loss, self.test_loss])
 
             self.batch += 1
         self.train_loss = losses / len(self.train_data)
@@ -117,18 +119,19 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
                 inp = inp.to(torch.float32)
                 inp = inp.to(DEVICE)
                 
-                # AE Network
-                reconstructions = self.network(inp)
-                loss += self.criterion(reconstructions, inp).item()
+                # # AE Network
+                # reconstructions = self.network(inp)
+                # loss += self.criterion(reconstructions, inp).item()
                 
-                # #-------------------------------------------------------------------------------------
-                # # VAE Network
-                # reconstructions = self.network(inp)                       
-                # # self.rec_loss = self.criterion(reconstructions, inp).item()
-                # self.rec_loss = self.criterion(reconstructions, inp)
-               
-                # loss += self.rec_loss + self.network.kl_value*1000
-                # #-------------------------------------------------------------------------------------
+                #-------------------------------------------------------------------------------------
+                # VAE Network
+                reconstructions = self.network(inp)                       
+                # self.rec_loss = self.criterion(reconstructions, inp).item()
+                self.rec_loss = self.criterion(reconstructions, inp)
+                
+                self.kl_divergence_loss = self.network.kl_value
+                loss += self.rec_loss + self.kl_divergence_loss
+                #-------------------------------------------------------------------------------------
                                                                   
         self.test_loss = loss / len(self.test_data)
         
@@ -174,8 +177,8 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
     
     # @tracer
     def evaluate(self):
-        self.data_storage.store([self.epoch, self.batch, self.loss, self.test_loss],
-                                force=self.batch)
+        self.data_storage.store([self.epoch, self.batch, self.loss, self.kl_divergence_loss, 
+                                 self.test_loss], force=self.batch)
         self._hook_every_epoch() 
         
         # Pass the best_state_dict back to the MyOptimizer class

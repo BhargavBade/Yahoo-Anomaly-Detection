@@ -1,26 +1,24 @@
-"""
-Created on Thu Sep 14 15:32:22 2023
-
-@author: BhargavBade
-"""
 
 from ccbdl.network.base import BaseNetwork
 import torch
 from torch import nn
 
-class MyVarAutoEncoder_Yahoo(BaseNetwork):
+class MyVarAutoEncoder(BaseNetwork):
     
-    def __init__(self, name : str, act_function : torch.nn.modules.activation,
-                  hidden_size : int, debug = False):
+    def __init__(self, name : str, act_function : torch.nn.modules.activation, 
+                 input_size:int, hidden_size : int, debug = False):
     
         super().__init__(name, debug)
         
         self.encoder = nn.Sequential(
-            # nn.Linear(120,64),
+            # nn.Linear(120,100),
             # act_function(),
-            nn.Linear(50,32),
-            act_function(),
-          
+            nn.Linear(input_size,80),
+            # act_function(),    
+            nn.Linear(80,64),
+            # act_function(),
+            nn.Linear(64,32),
+            # act_function(),          
         )
         
         self.fc_mu = nn.Linear(32, hidden_size)
@@ -28,11 +26,12 @@ class MyVarAutoEncoder_Yahoo(BaseNetwork):
         
         self.decoder = nn.Sequential(
             nn.Linear(hidden_size, 32),
-            act_function(),
-            nn.Linear(32, 50),
             # act_function(),
-            # nn.Linear(64, 120),
-            # nn.ReLU(),
+            nn.Linear(32, 64),
+            # act_function(),
+            nn.Linear(64, 80),
+            # act_function(),
+            nn.Linear(80,input_size),
             # act_function(),
         )  
 
@@ -45,9 +44,7 @@ class MyVarAutoEncoder_Yahoo(BaseNetwork):
     def kl(self,latent_mean,latent_logvar):
         return -0.5 * torch.mean(1 + latent_logvar -
                                     latent_mean.pow(2) -latent_logvar.exp())
-
-
-           
+          
     def forward(self,x):
             x = self.encoder(x)
             mu = self.fc_mu(x)
@@ -57,10 +54,10 @@ class MyVarAutoEncoder_Yahoo(BaseNetwork):
             self.kl_value = self.kl(mu,logvar)
             return decoded
     
-    
+        
 if __name__ == '__main__':
     inp = torch.rand(32,1,50)   
-    net = MyVarAutoEncoder_Yahoo("Vartest", torch.nn.LeakyReLU, 20)
+    net = MyVarAutoEncoder("Vartest", torch.nn.LeakyReLU, 20)
     out = net(inp)    
     
     

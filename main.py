@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     # Get Config
     config_loader = ccbdl.config_loader.loaders.ConfigurationLoader()
-    config_path = os.path.join(os.getcwd(), "Configuration", "config_sinewave.yaml")
+    config_path = os.path.join(os.getcwd(), "Configuration", "config_yahoo.yaml")
     config = config_loader.read_config(config_path)
 
     # Get Configurations

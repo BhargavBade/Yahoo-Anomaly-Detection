@@ -6,3 +6,6 @@ Configuration/config_sinewave.yaml
 Configuration/config_yahoo.yaml
 Configuration/config_sinewave.yaml
 Configuration/config_yahoo.yaml
+main.py
+Configuration/config_yahoo.yaml
+Network/auto_encoder.py

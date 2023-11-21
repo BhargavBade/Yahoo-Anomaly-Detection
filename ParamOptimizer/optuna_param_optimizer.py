@@ -8,10 +8,11 @@ from ccbdl import NBPATH
 from ccbdl.evaluation.additional import notebook_handler
 import time
 from Network.auto_encoder import MyAutoEncoder
-from Network.VAE_Yahoo import MyVarAutoEncoder_Yahoo
+from Network.Variational_AE import MyVarAutoEncoder
 from ccbdl.utils import DEVICE
 import torch
 from ccbdl.storages import storages
+from Plotting.latentspace_plotting import visualize_latent_space
 
 class MyOptimizer(BaseOptunaParamOptimizer):
     # @tracer
@@ -79,22 +80,27 @@ class MyOptimizer(BaseOptunaParamOptimizer):
         self.network_config["hidden_size"] = suggested["hidden_size"]
         
         # get data
-        train_data, test_data, val_data = prepare_data(self.data_config)
+        self.train_data, self.test_data, self.val_data = prepare_data(self.data_config)
         
         # AutoEncoder
-        self.network = MyAutoEncoder("AutoEncoder_Test",
-                                getattr(
-                                    torch.nn, self.network_config["act_function"]),
-                                self.network_config["input_size"],
-                                self.network_config["hidden_size"]).to(DEVICE)
+        # self.network = MyAutoEncoder("AutoEncoder_Test",
+        #                         getattr(
+        #                             torch.nn, self.network_config["act_function"]),
+        #                         self.network_config["input_size"],
+        #                         self.network_config["hidden_size"]).to(DEVICE)
         
+        self.network = MyVarAutoEncoder("VarAutoEncoder_Test",
+                                getattr(torch.nn, self.network_config["act_function"]),
+                                        self.network_config["input_size"],
+                                        self.network_config["hidden_size"]).to(DEVICE)
+                                    
         print("\n\n******* Start Train AutoEncoder *******")
         self.learner = LearnAutoEncoder(trial_path,
                                         trial,
                                         self.network,                                       
-                                        train_data,
-                                        test_data,
-                                        val_data,                                  
+                                        self.train_data,
+                                        self.test_data,
+                                        self.val_data,                                  
                                         self.learner_config,
                                         task=self.task)
 
@@ -102,15 +108,15 @@ class MyOptimizer(BaseOptunaParamOptimizer):
         self.learner.fit(test_epoch_step=self.learner_config["testevery"])
         print("\n******* Train AutoEncoder Done *******")
         
-        # start anomaly detection for every trial
+        visualize_latent_space(self.study_path, self.test_data, self.network, self.learner)
         
         # Inside the loop, update the best_state_dict if the current trial has better performance
         learner_best_values = self.learner.best_values
         if self.best_state_dict is None or learner_best_values[self.study_config['optimization_target']] < self.learner.best_values[self.study_config['optimization_target']]:
            self.best_state_dict = self.learner.best_state_dict
            self.best_model = self.network
-        
-        return self.learner.best_values[self.study_config['optimization_target']]   
+           
+        return self.learner.best_values[self.study_config['optimization_target']]    
 
     # @tracer
     def start_study(self):

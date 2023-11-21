@@ -4,7 +4,9 @@ from torch import nn
 
 
 class MyAutoEncoder(BaseNetwork):
-    def __init__(self, name : str, act_function : torch.nn.modules.activation, input_size:int, hidden_size : int, debug = False):
+    def __init__(self, name : str, act_function : torch.nn.modules.activation, 
+                 input_size:int, hidden_size : int, debug = False):
+        
         super().__init__(name, debug)
         self.encoder = torch.nn.Sequential(nn.Linear(input_size,32),
                                             # act_function(),                                        

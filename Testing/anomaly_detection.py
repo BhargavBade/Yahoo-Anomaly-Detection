@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 from Plotting.anomaly_plot import testdata_plotting
 
+
 class AnomalyDetection():
         
-    # def __init__(self, path, network):
     def __init__(self, path, study_config: dict, data_config: dict):    
                   
         self.path = path
@@ -61,14 +61,15 @@ class AnomalyDetection():
                 
                 # reconstructions, mu, logvar = self.model(inp)
                 
-                # loss                                       
-                loss = loss_crit(reconstructions, inp) 
-                #----------------------------------------------------------------------
-                # rec_losss =  loss_crit(reconstructions, inp)
-                # kl_divergence_losss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())                
-                # loss = rec_losss + kl_divergence_losss
+                # # loss                                       
+                # loss = loss_crit(reconstructions, inp) 
+                #-------------------------------------------------------------------------
+                # VAE Loss
+                losss = loss_crit(reconstructions, inp)
+                kl_loss = self.model.kl_value
+                loss = losss + kl_loss
                 #------------------------------------------------------------------------------
-                # val_reconstruction_error.append(loss.item()) 
+                # val_reconstruction_error.append(loss.item()) #For getting single loss value for whole batch 
                 val_reconstruction_error.append(loss)
                 val_labels.append(labels)
             #------------------------------------------------------------------------------------------------------ 
@@ -123,15 +124,17 @@ class AnomalyDetection():
                 inp = inp.to(DEVICE)                 
                 # network
                 test_reconstructions = self.model(inp)                 
-               # test_reconstructions, mu, logvar = self.model(inp)                                
-                testdata_rec.append(test_reconstructions)            
-                # loss   
-                # test_rec_error.append(loss_test.item()) #For getting single loss value for whole batch                          
-                loss_test = loss_crit_test(test_reconstructions, inp)
+                # test_reconstructions, mu, logvar = self.model(inp)                                
+                testdata_rec.append(test_reconstructions)  
+                # # test_rec_error.append(loss_test.item()) #For getting single loss value for whole batch 
+                
+                # # loss   
+                # loss_test = loss_crit_test(test_reconstructions, inp)
                 # #-------------------------------------------------------------------------------------- 
-                # rec_loss =  loss_crit_test(test_reconstructions, inp)
-                # kl_divergence_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())                
-                # loss_test = rec_loss + kl_divergence_loss
+                # VAE Loss
+                loss = loss_crit_test(test_reconstructions, inp)
+                kl_loss = self.model.kl_value
+                loss_test = loss + kl_loss
                 # #--------------------------------------------------------------------------------- 
                 test_rec_error.append(loss_test)                              
                 test_data.append(inp)  
