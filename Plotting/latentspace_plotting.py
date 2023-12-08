@@ -13,13 +13,14 @@ def visualize_latent_space(path,train_data,network,learner):
         for _, (inp, labels) in enumerate(train_data):
             inputs = inp.to(DEVICE)
             enc = learner._encode(inputs)
-            mu = network.fc_mu(enc)
-            logvar = network.fc_logvar(enc)
+            mu = network.en_mu(enc)
+            logvar = network.en_logvar(enc)
             z = network.reparameterize(mu, logvar)
             latent_space.append(z)
         
     latent_space = torch.cat(latent_space, dim=0)
     latent_space = latent_space.reshape(latent_space.shape[0],-1)
+    latent_space = latent_space.cpu().numpy()
     
     # Plot latent space dimensions
     num_plots = latent_space.shape[-1]

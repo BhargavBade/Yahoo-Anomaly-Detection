@@ -7,7 +7,8 @@ import ccbdl
 import os
 import sys
 import inspect
-from Testing.anomaly_detection import AnomalyDetection
+from Testing.lae_anm_detc import LAEAnomalyDetection
+from Testing.vae_anm_detc import VAEAnomalyDetection
 
 currentdir = os.path.dirname(os.path.abspath(
     inspect.getfile(inspect.currentframe())))
@@ -44,7 +45,8 @@ if __name__ == '__main__':
                        debug=False,
                        logging=True)
     
-    rec_error = AnomalyDetection(study_path, study_config, data_config)
+    # rec_error = LAEAnomalyDetection(study_path, study_config, data_config)
+    rec_error = VAEAnomalyDetection(study_path, study_config, data_config)
 
     # Run Parameter Optimizer
     opti.start_study()

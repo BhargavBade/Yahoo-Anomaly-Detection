@@ -10,9 +10,10 @@ from sklearn.metrics import classification_report, average_precision_score
 import matplotlib.pyplot as plt
 from sklearn import metrics
 from Plotting.anomaly_plot import testdata_plotting
+from torch.distributions import Normal
 
 
-class AnomalyDetection():
+class LAEAnomalyDetection():
         
     def __init__(self, path, study_config: dict, data_config: dict):    
                   
@@ -56,7 +57,8 @@ class AnomalyDetection():
             for _, (inp, labels) in enumerate(self.val_data):                           
                 # get data
                 inp = inp.to(torch.float32)
-                inp = inp.to(DEVICE)                        
+                inp = inp.to(DEVICE) 
+                
                 reconstructions = self.model(inp) 
                 
                 # reconstructions, mu, logvar = self.model(inp)

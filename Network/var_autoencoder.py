@@ -19,10 +19,10 @@ class MyVarAutoEncoder(BaseNetwork):
             # act_function(),
             nn.Linear(64,32),
             # act_function(),          
-        )
+            )
         
-        self.fc_mu = nn.Linear(32, hidden_size)
-        self.fc_logvar = nn.Linear(32, hidden_size)
+        self.en_mu = nn.Linear(32, hidden_size)
+        self.en_logvar = nn.Linear(32, hidden_size)
         
         self.decoder = nn.Sequential(
             nn.Linear(hidden_size, 32),
@@ -31,10 +31,11 @@ class MyVarAutoEncoder(BaseNetwork):
             # act_function(),
             nn.Linear(64, 80),
             # act_function(),
-            nn.Linear(80,input_size),
-            # act_function(),
-        )  
-
+            )
+        
+        self.de_mu = nn.Linear(80, input_size)
+        self.de_logvar =  nn.Linear(80, input_size)
+            
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
@@ -47,16 +48,19 @@ class MyVarAutoEncoder(BaseNetwork):
           
     def forward(self,x):
             x = self.encoder(x)
-            mu = self.fc_mu(x)
-            logvar = self.fc_logvar(x)
-            z = self.reparameterize(mu, logvar)
+            latent_mu = self.en_mu(x)
+            latent_logvar = self.en_logvar(x)
+            z = self.reparameterize(latent_mu, latent_logvar)
             decoded = self.decoder(z)
-            self.kl_value = self.kl(mu,logvar)
-            return decoded
+            recon_mu =  self.de_mu(decoded)
+            recon_logvar = self.de_logvar(decoded)
+            self.kl_value = self.kl(latent_mu,latent_logvar)
+            rec_z = self.reparameterize(recon_mu, recon_logvar)
+            return rec_z
     
-        
+            
 if __name__ == '__main__':
-    inp = torch.rand(32,1,50)   
+    inp = torch.rand(32,1,120)   
     net = MyVarAutoEncoder("Vartest", torch.nn.LeakyReLU, 20)
     out = net(inp)    
     

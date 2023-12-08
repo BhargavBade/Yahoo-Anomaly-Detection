@@ -3,12 +3,13 @@ import datetime
 import os
 from Data.prepare_data import prepare_data
 from Learning.learn_autoencoder import LearnAutoEncoder
+from Learning.learn_varautoencoder import LearnVarAutoEncoder
 from ccbdl.parameter_optimizer.optuna_base import BaseOptunaParamOptimizer
 from ccbdl import NBPATH
 from ccbdl.evaluation.additional import notebook_handler
 import time
 from Network.auto_encoder import MyAutoEncoder
-from Network.Variational_AE import MyVarAutoEncoder
+from Network.var_autoencoder import MyVarAutoEncoder
 from ccbdl.utils import DEVICE
 import torch
 from ccbdl.storages import storages
@@ -95,7 +96,16 @@ class MyOptimizer(BaseOptunaParamOptimizer):
                                         self.network_config["hidden_size"]).to(DEVICE)
                                     
         print("\n\n******* Start Train AutoEncoder *******")
-        self.learner = LearnAutoEncoder(trial_path,
+        # self.learner = LearnAutoEncoder(trial_path,
+        #                                 trial,
+        #                                 self.network,                                       
+        #                                 self.train_data,
+        #                                 self.test_data,
+        #                                 self.val_data,                                  
+        #                                 self.learner_config,
+        #                                 task=self.task)
+
+        self.learner = LearnVarAutoEncoder(trial_path,
                                         trial,
                                         self.network,                                       
                                         self.train_data,
@@ -108,7 +118,7 @@ class MyOptimizer(BaseOptunaParamOptimizer):
         self.learner.fit(test_epoch_step=self.learner_config["testevery"])
         print("\n******* Train AutoEncoder Done *******")
         
-        visualize_latent_space(self.study_path, self.test_data, self.network, self.learner)
+        visualize_latent_space(self.study_path, self.train_data, self.network, self.learner)
         
         # Inside the loop, update the best_state_dict if the current trial has better performance
         learner_best_values = self.learner.best_values

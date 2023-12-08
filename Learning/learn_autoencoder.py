@@ -86,14 +86,15 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
             
             #-------------------------------------------------------------------------------------
             # VAE network
-            reconstructions = self.network(inp)                       
-            self.rec_loss = self.criterion(reconstructions, inp)
+            recon_mu, recon_logvar = self.network(inp)                       
+            self.rec_loss_mu = self.criterion(recon_mu, inp)
+            self.rec_loss_logvar = self.criterion(recon_logvar, inp)
             
             # Compute KL divergence loss
             # self.kl_divergence_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
             
             self.kl_divergence_loss = self.network.kl_value
-            self.loss = self.rec_loss + self.kl_divergence_loss
+            self.loss = self.rec_loss_mu + self.rec_loss_logvar + self.kl_divergence_loss
             self.loss.backward() 
             #-------------------------------------------------------------------------------------
             
@@ -124,18 +125,21 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
                 # loss += self.criterion(reconstructions, inp).item()
                 
                 #-------------------------------------------------------------------------------------
-                # VAE Network
-                reconstructions = self.network(inp)                       
-                # self.rec_loss = self.criterion(reconstructions, inp).item()
-                self.rec_loss = self.criterion(reconstructions, inp)
+                # VAE network
+                recon_mu, recon_logvar = self.network(inp)                       
+                self.rec_loss_mu = self.criterion(recon_mu, inp)
+                self.rec_loss_logvar = self.criterion(recon_logvar, inp)
+                
+                # Compute KL divergence loss
+                # self.kl_divergence_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
                 
                 self.kl_divergence_loss = self.network.kl_value
-                loss += self.rec_loss + self.kl_divergence_loss
+                loss = self.rec_loss_mu + self.rec_loss_logvar + self.kl_divergence_loss
                 #-------------------------------------------------------------------------------------
                                                                   
         self.test_loss = loss / len(self.test_data)
         
-        self.data_storage.dump_store("Data", (inp, reconstructions))
+        self.data_storage.dump_store("Data", (inp, recon_mu, recon_logvar))
 
     # @tracer
     def _hook_every_epoch(self):

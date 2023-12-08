@@ -10,9 +10,9 @@ Optimized:
 
 Data:
     dataset: yahoo
-    subset: A3
+    subset: A4
     task: anomaly
-    batch_size: 64
+    batch_size: 16
     worker: 0
     scaler: mean
     path: "Datasets"
@@ -22,14 +22,14 @@ Study:
   number_of_trials: 1
   direction: minimize
   optimization_target: TrainLoss
-  study_name: VarAEStudyofYahooA4_latsp
+  study_name: VarAEStudyofYahooA4
 
 Network:
   act_function: Tanh
   input_size: 120
   
 Learning:
-  num_epochs: 30
+  num_epochs: 100
   testevery: 5
   optimizer: Adam
   scheduler: StepLR

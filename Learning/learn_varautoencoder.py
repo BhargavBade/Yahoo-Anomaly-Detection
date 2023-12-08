@@ -1,19 +1,12 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Sep 14 17:13:25 2023
-
-@author: BhargavBade
-"""
-
 import torch
-# from ccbdl.utils.tracer import tracer
 from ccbdl.utils import DEVICE
 from ccbdl.utils.datatypes import TaskPool
 from ccbdl.learning.auto_encoder import BaseAutoEncoderLearning
 from ccbdl.evaluation.plotting.reconstruct import ReconstructionLosses, StaticReconstructions
 from Plotting.reconstruction_plot import ReconstructionPlot
+from torch.distributions import Normal, kl_divergence
 
-class LearnAutoEncoder(BaseAutoEncoderLearning):
+class LearnVarAutoEncoder(BaseAutoEncoderLearning):
     """
     
     Abstractmethods
@@ -43,12 +36,17 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
                  task: TaskPool,
                  debug=False,
                  **kwargs):
-        super().__init__(train_data, test_data, val_data,
+        super().__init__(train_data, test_data, val_data, 
+                         # data_storage_names=["epoch", "batch",
+                         #                     "train_loss","test_loss"],
+                          data_storage_names=["epoch", "batch",
+                                              "train_loss", "kl_loss","test_loss"],
                          path=trial_path, config=config, task=task, debug=debug)
         self.network = network
         self.trial = trial
         self.parameter_storage.equal_signs()
-        self.criterion = getattr(torch.nn, self.criterion)()
+        self.criterion = getattr(torch.nn, self.criterion)()  #For LAE Network
+        # self.criterion = getattr(torch.nn, self.criterion)(reduction = 'sum')
         self.optimizer = getattr(torch.optim, self.optimizer)(
             self.network.parameters(), lr=self.learning_rate)
 
@@ -59,43 +57,79 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
         self.plotter.register_default_plot(ReconstructionLosses(self))
         
         self.best_state_dict = None
-        # data_storage_names=["epoch", "batch",
-        #                     "train_loss", "val_loss","test_loss"]
         
-    # # @tracer
-    # def _encode(self, ins):
-    #     return self.network.encoder(ins)
+    # @tracer
+    def _encode(self, ins):
+        ins = ins.to(torch.float32)
+        return self.network.encoder(ins)
 
-    # # @tracer
-    # def _decode(self, ins):
-    #     return self.network.decoder(ins)
+    # @tracer
+    def _decode(self, ins):
+        ins = ins.to(torch.float32)
+        return self.network.decoder(ins)
 
     # @tracer
     def _train_epoch(self, train=True):
         self.network.train() 
+        self.L = 20
+        self.prior = Normal(0, 1)
         losses = 0               
-        for _, (inp) in enumerate(self.train_data):
+        for _, (inp, _)  in enumerate(self.train_data):
+            
+            inp = inp.to(torch.float32)
+            inp = inp.to(DEVICE)
+            rec_losses = 0
+            kl_losses = 0
+            total_losses = 0
+            
             for param in self.network.parameters(): 
                 param.grad = None
-            # get data
-            inp = inp.to(DEVICE)
-
-            # network
-            reconstructions, mu, logvar = self.network(inp)                       
-            
-            # loss
-            self.rec_loss = self.criterion(reconstructions, inp)
-            
-            # Compute KL divergence loss
-            self.kl_divergence_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-            
+                
+                for i in range(inp.size(0)):
+                    sample = inp[i, :, :]
+                    sample = sample.view(sample.size(0), sample.size(0), sample.size(1))
+                            
+                    sample = sample.to(torch.float32)
+                    sample = sample.to(DEVICE)
+                    # network
+                    enc = self.network.encoder(sample)
+                    latent_mu = self.network.en_mu(enc)
+                    latent_logvar = self.network.en_logvar(enc)
+                    latent_logvar = torch.exp(0.5 * latent_logvar)            
+                    latent_dist = Normal(latent_mu, latent_logvar)
+                    z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
+                    z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+                    decoded = self.network.decoder(z)
+                    recon_mu = self.network.de_mu(decoded)
+                    recon_logvar = self.network.de_logvar(decoded)
+                    recon_logvar = torch.exp(0.5 * recon_logvar)
+                    rec_z = self.network.reparameterize(recon_mu, recon_logvar)
+                    # log_lik = Normal(recon_mu, recon_logvar).log_prob(sample).mean(dim=0).sum()
+                    log_lik = Normal(recon_mu, recon_logvar).log_prob(sample).mean()
+                    # log_lik = log_lik.mean(dim=0).sum()
+                    kl = kl_divergence(latent_dist, self.prior).mean()
+                    # kl = self.network.kl(latent_mu,latent_logvar)
+                    # kl = kl_divergence(latent_dist, self.prior).mean(dim=0).sum()
+                    # sample_loss = kl - log_lik
+                    # sample_loss = kl + abs(log_lik)
+                
+                    # rec_losses += log_lik
+                    rec_losses+= abs(log_lik)
+                    kl_losses+= kl
+                    # total_losses+= sample_loss
+                
+            self.rec_loss =  rec_losses  / len(inp)
+            self.kl_divergence_loss = kl_losses / len(inp)
+            # self.loss = total_losses / len(inp)
             self.loss = self.rec_loss + self.kl_divergence_loss
             self.loss.backward() 
+            #-------------------------------------------------------------------------------------
             
             losses+= self.loss
             self.optimizer.step()
+            
             self.data_storage.store(
-                [self.epoch, self.batch, self.loss, self.test_loss])
+                [self.epoch, self.batch, self.loss, self.kl_divergence_loss, self.test_loss])
 
             self.batch += 1
         self.train_loss = losses / len(self.train_data)
@@ -104,16 +138,62 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
     # # @tracer
     def _test_epoch(self):
         self.network.eval()
-        loss = 0
-        with torch.no_grad():
-            for _, inp in enumerate(self.test_data):
-                inp = inp.to(DEVICE)
-                reconstructions = self.network(inp)
-                loss += self.criterion(reconstructions, inp).item()
-                                                                  
+        self.L = 20
+        self.prior = Normal(0, 1)
+        loss = 0               
+        for _, (inp, _)  in enumerate(self.test_data):
+            
+            inp = inp.to(torch.float32)
+            inp = inp.to(DEVICE)
+            rec_losses = 0
+            kl_losses = 0
+            total_losses = 0
+            
+            for param in self.network.parameters(): 
+                param.grad = None
+                
+                for i in range(inp.size(0)):
+                    sample = inp[i, :, :]
+                    sample = sample.view(sample.size(0), sample.size(0), sample.size(1))
+                            
+                    sample = sample.to(torch.float32)
+                    sample = sample.to(DEVICE)
+                    # network
+                    enc = self.network.encoder(sample)
+                    latent_mu = self.network.en_mu(enc)
+                    latent_logvar = self.network.en_logvar(enc)
+                    latent_logvar = torch.exp(0.5 * latent_logvar)            
+                    latent_dist = Normal(latent_mu, latent_logvar)
+                    z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
+                    z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+                    decoded = self.network.decoder(z)
+                    recon_mu = self.network.de_mu(decoded)
+                    recon_logvar = self.network.de_logvar(decoded)
+                    recon_logvar = torch.exp(0.5 * recon_logvar)
+                    rec_z = self.network.reparameterize(recon_mu, recon_logvar)
+                    # log_lik = Normal(recon_mu, recon_logvar).log_prob(sample).mean(dim=0).sum()
+                    log_lik = Normal(recon_mu, recon_logvar).log_prob(sample).mean()
+                    # log_lik = log_lik.mean(dim=0).sum()
+                    kl = kl_divergence(latent_dist, self.prior).mean()
+                    # kl = self.network.kl(latent_mu,latent_logvar)
+                    # kl = kl_divergence(latent_dist, self.prior).mean(dim=0).sum()                    
+                    # sample_loss = kl - log_lik
+                    # sample_loss = kl + abs(log_lik)
+                
+                    # rec_losses += log_lik
+                    rec_losses+= abs(log_lik)
+                    kl_losses+= kl
+                    # total_losses+= sample_loss
+                                   
+            self.rec_loss =  rec_losses  / len(inp)
+            self.kl_divergence_loss = kl_losses / len(inp)
+            # self.loss = total_losses / len(inp)
+            self.loss = self.rec_loss + self.kl_divergence_loss
+            loss+= self.loss            
+                            
         self.test_loss = loss / len(self.test_data)
         
-        self.data_storage.dump_store("Data", (inp, reconstructions))
+        self.data_storage.dump_store("Data", (inp, rec_z))
 
     # @tracer
     def _hook_every_epoch(self):
@@ -121,7 +201,8 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
     
     # @tracer
     def _validate_epoch(self):
-        return self._test_epoch()
+        pass
+        # return self._test_epoch()
 
     # @tracer
     def _update_best(self):
@@ -154,8 +235,8 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
     
     # @tracer
     def evaluate(self):
-        self.data_storage.store([self.epoch, self.batch, self.loss, self.test_loss],
-                                force=self.batch)
+        self.data_storage.store([self.epoch, self.batch, self.loss, self.kl_divergence_loss, 
+                                 self.test_loss], force=self.batch)
         self._hook_every_epoch() 
         
         # Pass the best_state_dict back to the MyOptimizer class
