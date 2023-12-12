@@ -10,3 +10,5 @@ main.py
 Configuration/config_yahoo.yaml
 Network/auto_encoder.py
 *.yaml
+*.yaml
+*.yaml

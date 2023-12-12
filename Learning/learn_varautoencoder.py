@@ -37,8 +37,6 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
                  debug=False,
                  **kwargs):
         super().__init__(train_data, test_data, val_data, 
-                         # data_storage_names=["epoch", "batch",
-                         #                     "train_loss","test_loss"],
                           data_storage_names=["epoch", "batch",
                                               "train_loss", "kl_loss","test_loss"],
                          path=trial_path, config=config, task=task, debug=debug)
@@ -71,60 +69,38 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
     # @tracer
     def _train_epoch(self, train=True):
         self.network.train() 
-        self.L = 20
+        self.L = 16
         self.prior = Normal(0, 1)
         losses = 0               
         for _, (inp, _)  in enumerate(self.train_data):
             
             inp = inp.to(torch.float32)
-            inp = inp.to(DEVICE)
-            rec_losses = 0
-            kl_losses = 0
-            total_losses = 0
-            
+            inp = inp.to(DEVICE)           
             for param in self.network.parameters(): 
                 param.grad = None
                 
-                for i in range(inp.size(0)):
-                    sample = inp[i, :, :]
-                    sample = sample.view(sample.size(0), sample.size(0), sample.size(1))
-                            
-                    sample = sample.to(torch.float32)
-                    sample = sample.to(DEVICE)
-                    # network
-                    enc = self.network.encoder(sample)
-                    latent_mu = self.network.en_mu(enc)
-                    latent_logvar = self.network.en_logvar(enc)
-                    latent_logvar = torch.exp(0.5 * latent_logvar)            
-                    latent_dist = Normal(latent_mu, latent_logvar)
-                    z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
-                    z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
-                    decoded = self.network.decoder(z)
-                    recon_mu = self.network.de_mu(decoded)
-                    recon_logvar = self.network.de_logvar(decoded)
-                    recon_logvar = torch.exp(0.5 * recon_logvar)
-                    rec_z = self.network.reparameterize(recon_mu, recon_logvar)
-                    # log_lik = Normal(recon_mu, recon_logvar).log_prob(sample).mean(dim=0).sum()
-                    log_lik = Normal(recon_mu, recon_logvar).log_prob(sample).mean()
-                    # log_lik = log_lik.mean(dim=0).sum()
-                    kl = kl_divergence(latent_dist, self.prior).mean()
-                    # kl = self.network.kl(latent_mu,latent_logvar)
-                    # kl = kl_divergence(latent_dist, self.prior).mean(dim=0).sum()
-                    # sample_loss = kl - log_lik
-                    # sample_loss = kl + abs(log_lik)
-                
-                    # rec_losses += log_lik
-                    rec_losses+= abs(log_lik)
-                    kl_losses+= kl
-                    # total_losses+= sample_loss
-                
-            self.rec_loss =  rec_losses  / len(inp)
-            self.kl_divergence_loss = kl_losses / len(inp)
-            # self.loss = total_losses / len(inp)
+            # network
+            enc = self.network.encoder(inp)
+            latent_mu = self.network.en_mu(enc)
+            latent_logvar = self.network.en_logvar(enc)
+            latent_logvar = torch.exp(0.5 * latent_logvar)            
+            latent_dist = Normal(latent_mu, latent_logvar)
+            z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
+            z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+            decoded = self.network.decoder(z)
+            recon_mu = self.network.de_mu(decoded)
+            recon_mu = recon_mu.view(self.L, *inp.shape)
+            recon_logvar = self.network.de_logvar(decoded)
+            recon_logvar = torch.exp(0.5 * recon_logvar)
+            recon_logvar = recon_logvar.view(self.L, *inp.shape)
+            rec_z = self.network.reparameterize(recon_mu, recon_logvar)
+            log_lik = Normal(recon_mu, recon_logvar).log_prob(inp).mean()
+            kl = kl_divergence(latent_dist, self.prior).mean()
+             
+            self.rec_loss = abs(log_lik)
+            self.kl_divergence_loss = kl
             self.loss = self.rec_loss + self.kl_divergence_loss
             self.loss.backward() 
-            #-------------------------------------------------------------------------------------
-            
             losses+= self.loss
             self.optimizer.step()
             
@@ -138,58 +114,37 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
     # # @tracer
     def _test_epoch(self):
         self.network.eval()
-        self.L = 20
+        self.L = 16
         self.prior = Normal(0, 1)
-        loss = 0               
-        for _, (inp, _)  in enumerate(self.test_data):
-            
-            inp = inp.to(torch.float32)
-            inp = inp.to(DEVICE)
-            rec_losses = 0
-            kl_losses = 0
-            total_losses = 0
-            
-            for param in self.network.parameters(): 
-                param.grad = None
+        loss = 0 
+        with torch.no_grad():              
+            for _, (inp, _)  in enumerate(self.test_data):
                 
-                for i in range(inp.size(0)):
-                    sample = inp[i, :, :]
-                    sample = sample.view(sample.size(0), sample.size(0), sample.size(1))
-                            
-                    sample = sample.to(torch.float32)
-                    sample = sample.to(DEVICE)
-                    # network
-                    enc = self.network.encoder(sample)
-                    latent_mu = self.network.en_mu(enc)
-                    latent_logvar = self.network.en_logvar(enc)
-                    latent_logvar = torch.exp(0.5 * latent_logvar)            
-                    latent_dist = Normal(latent_mu, latent_logvar)
-                    z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
-                    z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
-                    decoded = self.network.decoder(z)
-                    recon_mu = self.network.de_mu(decoded)
-                    recon_logvar = self.network.de_logvar(decoded)
-                    recon_logvar = torch.exp(0.5 * recon_logvar)
-                    rec_z = self.network.reparameterize(recon_mu, recon_logvar)
-                    # log_lik = Normal(recon_mu, recon_logvar).log_prob(sample).mean(dim=0).sum()
-                    log_lik = Normal(recon_mu, recon_logvar).log_prob(sample).mean()
-                    # log_lik = log_lik.mean(dim=0).sum()
-                    kl = kl_divergence(latent_dist, self.prior).mean()
-                    # kl = self.network.kl(latent_mu,latent_logvar)
-                    # kl = kl_divergence(latent_dist, self.prior).mean(dim=0).sum()                    
-                    # sample_loss = kl - log_lik
-                    # sample_loss = kl + abs(log_lik)
-                
-                    # rec_losses += log_lik
-                    rec_losses+= abs(log_lik)
-                    kl_losses+= kl
-                    # total_losses+= sample_loss
-                                   
-            self.rec_loss =  rec_losses  / len(inp)
-            self.kl_divergence_loss = kl_losses / len(inp)
-            # self.loss = total_losses / len(inp)
-            self.loss = self.rec_loss + self.kl_divergence_loss
-            loss+= self.loss            
+                inp = inp.to(torch.float32)
+                inp = inp.to(DEVICE)              
+                    
+                ## network
+                enc = self.network.encoder(inp)
+                latent_mu = self.network.en_mu(enc)
+                latent_logvar = self.network.en_logvar(enc)
+                latent_logvar = torch.exp(0.5 * latent_logvar)            
+                latent_dist = Normal(latent_mu, latent_logvar)
+                z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
+                z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+                decoded = self.network.decoder(z)
+                recon_mu = self.network.de_mu(decoded)
+                recon_mu = recon_mu.view(self.L, *inp.shape)
+                recon_logvar = self.network.de_logvar(decoded)
+                recon_logvar = torch.exp(0.5 * recon_logvar)
+                recon_logvar = recon_logvar.view(self.L, *inp.shape)
+                rec_z = self.network.reparameterize(recon_mu, recon_logvar)
+                log_lik = Normal(recon_mu, recon_logvar).log_prob(inp).mean()
+                kl = kl_divergence(latent_dist, self.prior).mean()
+
+                self.rec_loss = abs(log_lik)        
+                self.kl_divergence_loss = kl  
+                self.loss = self.rec_loss + self.kl_divergence_loss
+                loss+= self.loss            
                             
         self.test_loss = loss / len(self.test_data)
         

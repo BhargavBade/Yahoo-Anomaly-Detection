@@ -45,8 +45,16 @@ if __name__ == '__main__':
                        debug=False,
                        logging=True)
     
-    # rec_error = LAEAnomalyDetection(study_path, study_config, data_config)
-    rec_error = VAEAnomalyDetection(study_path, study_config, data_config)
+    study = study_config["study_name"]
+    
+    if "lae" in study.lower():   
+        anomaly_detector = LAEAnomalyDetection(study_path, study_config, data_config)
+    
+    elif "var" in study.lower():
+        anomaly_detector = VAEAnomalyDetection(study_path, study_config, data_config)
+    
+    else:
+        print("study not found")     
 
     # Run Parameter Optimizer
     opti.start_study()
@@ -58,6 +66,6 @@ if __name__ == '__main__':
     opti.eval_study()
     
     # Testing
-    # Finding threshold reconstruction error and anomalies
-    rec_error.find_threshold()   
-    rec_error.find_anomalies()
+    # Finding threshold and anomalies
+    anomaly_detector.find_threshold()   
+    anomaly_detector.find_anomalies()

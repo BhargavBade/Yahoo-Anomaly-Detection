@@ -83,42 +83,50 @@ class MyOptimizer(BaseOptunaParamOptimizer):
         # get data
         self.train_data, self.test_data, self.val_data = prepare_data(self.data_config)
         
-        # AutoEncoder
-        # self.network = MyAutoEncoder("AutoEncoder_Test",
-        #                         getattr(
-        #                             torch.nn, self.network_config["act_function"]),
-        #                         self.network_config["input_size"],
-        #                         self.network_config["hidden_size"]).to(DEVICE)
+        study = self.study_config["study_name"]
         
-        self.network = MyVarAutoEncoder("VarAutoEncoder_Test",
-                                getattr(torch.nn, self.network_config["act_function"]),
-                                        self.network_config["input_size"],
-                                        self.network_config["hidden_size"]).to(DEVICE)
+        if "lae" in study.lower():
+            # AutoEncoder
+            self.network = MyAutoEncoder("AutoEncoder_Test",
+                                    getattr(torch.nn, self.network_config["act_function"]),
+                                            self.network_config["input_size"],
+                                            self.network_config["hidden_size"]).to(DEVICE)
+                                                
+            self.learner = LearnAutoEncoder(trial_path,
+                                            trial,
+                                            self.network,                                       
+                                            self.train_data,
+                                            self.test_data,
+                                            self.val_data,                                  
+                                            self.learner_config,
+                                            task=self.task)
+        
+        elif "var" in study.lower():
+            # Variational AE
+            self.network = MyVarAutoEncoder("VarAutoEncoder_Test",
+                                    getattr(torch.nn, self.network_config["act_function"]),
+                                            self.network_config["input_size"],
+                                            self.network_config["hidden_size"]).to(DEVICE)
+            
+            self.learner = LearnVarAutoEncoder(trial_path,
+                                                trial,
+                                                self.network,                                       
+                                                self.train_data,
+                                                self.test_data,
+                                                self.val_data,                                  
+                                                self.learner_config,
+                                                task=self.task)   
+            
+            visualize_latent_space(self.study_path, self.train_data, self.network, self.learner)
+       
+        else:
+            print("study not found")    
                                     
         print("\n\n******* Start Train AutoEncoder *******")
-        # self.learner = LearnAutoEncoder(trial_path,
-        #                                 trial,
-        #                                 self.network,                                       
-        #                                 self.train_data,
-        #                                 self.test_data,
-        #                                 self.val_data,                                  
-        #                                 self.learner_config,
-        #                                 task=self.task)
-
-        self.learner = LearnVarAutoEncoder(trial_path,
-                                        trial,
-                                        self.network,                                       
-                                        self.train_data,
-                                        self.test_data,
-                                        self.val_data,                                  
-                                        self.learner_config,
-                                        task=self.task)
 
         self.learner.parameter_storage.store(suggested, header = "suggested_parameters")
         self.learner.fit(test_epoch_step=self.learner_config["testevery"])
         print("\n******* Train AutoEncoder Done *******")
-        
-        visualize_latent_space(self.study_path, self.train_data, self.network, self.learner)
         
         # Inside the loop, update the best_state_dict if the current trial has better performance
         learner_best_values = self.learner.best_values

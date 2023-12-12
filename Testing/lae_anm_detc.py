@@ -10,7 +10,6 @@ from sklearn.metrics import classification_report, average_precision_score
 import matplotlib.pyplot as plt
 from sklearn import metrics
 from Plotting.anomaly_plot import testdata_plotting
-from torch.distributions import Normal
 
 
 class LAEAnomalyDetection():
@@ -57,20 +56,11 @@ class LAEAnomalyDetection():
             for _, (inp, labels) in enumerate(self.val_data):                           
                 # get data
                 inp = inp.to(torch.float32)
-                inp = inp.to(DEVICE) 
-                
+                inp = inp.to(DEVICE)                
                 reconstructions = self.model(inp) 
-                
-                # reconstructions, mu, logvar = self.model(inp)
-                
-                # # loss                                       
-                # loss = loss_crit(reconstructions, inp) 
-                #-------------------------------------------------------------------------
-                # VAE Loss
-                losss = loss_crit(reconstructions, inp)
-                kl_loss = self.model.kl_value
-                loss = losss + kl_loss
-                #------------------------------------------------------------------------------
+                                
+                # loss                                       
+                loss = loss_crit(reconstructions, inp) 
                 # val_reconstruction_error.append(loss.item()) #For getting single loss value for whole batch 
                 val_reconstruction_error.append(loss)
                 val_labels.append(labels)
@@ -112,8 +102,7 @@ class LAEAnomalyDetection():
     def find_anomalies(self):
         
         self.model.eval() 
-        loss_crit_test = nn.MSELoss(reduction = 'none')  
-        # loss_crit_test = nn.BCELoss(reduction = 'none')  
+        loss_crit_test = nn.MSELoss(reduction = 'none')   
         
         testdata_rec = []
         test_rec_error = []                 
@@ -125,19 +114,11 @@ class LAEAnomalyDetection():
                 inp = inp.to(torch.float32)
                 inp = inp.to(DEVICE)                 
                 # network
-                test_reconstructions = self.model(inp)                 
-                # test_reconstructions, mu, logvar = self.model(inp)                                
+                test_reconstructions = self.model(inp)                                               
                 testdata_rec.append(test_reconstructions)  
-                # # test_rec_error.append(loss_test.item()) #For getting single loss value for whole batch 
-                
-                # # loss   
-                # loss_test = loss_crit_test(test_reconstructions, inp)
-                # #-------------------------------------------------------------------------------------- 
-                # VAE Loss
-                loss = loss_crit_test(test_reconstructions, inp)
-                kl_loss = self.model.kl_value
-                loss_test = loss + kl_loss
-                # #--------------------------------------------------------------------------------- 
+                # test_rec_error.append(loss_test.item()) #For getting single loss value for whole batch                 
+                # loss   
+                loss_test = loss_crit_test(test_reconstructions, inp)
                 test_rec_error.append(loss_test)                              
                 test_data.append(inp)  
                 test_labels.append(labels) 

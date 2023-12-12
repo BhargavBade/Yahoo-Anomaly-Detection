@@ -11,8 +11,6 @@ import matplotlib.pyplot as plt
 from sklearn import metrics
 from Plotting.anomaly_plot import testdata_plotting
 from torch.distributions import Normal
-from Plotting.latentspace_plotting import visualize_latent_space
-
 
 class VAEAnomalyDetection():
         
@@ -42,10 +40,7 @@ class VAEAnomalyDetection():
         self.path_bestmodel =  os.path.join(self.path,"best_model.pt")
 
 #----------------------------------------------------------------------------------------------                        
-    def find_threshold(self):
-        
-        val_labels = []
-        loss_crit = nn.MSELoss(reduction = 'none')
+    def find_threshold(self):        
         
         print("\n******** Finding threshold reconstruction error of the Data ********\n")                                
 
@@ -56,14 +51,9 @@ class VAEAnomalyDetection():
         self.L = 10               
         val_data = []
         val_labels = []
-        valdata_rec = []
-        val_rec_mu = []
-        val_rec_sigma = []
-        val_probabilities = []
-        latent_spacee = []
-        
-        sample_probabilitiess = [] 
-        avg_tot_probabilitiess = [] 
+        valdata_rec = []    
+        rec_latent_probabilities = [] 
+ 
         # Assuming self.test_data is your test data
         with torch.no_grad():
             for _, (inp, labels) in enumerate(self.test_data):
@@ -72,64 +62,30 @@ class VAEAnomalyDetection():
                 inp = inp.to(DEVICE)
                 test_reconstructions = self.model(inp)
                 
-                for i in range(inp.size(0)):
-                    sample = inp[i, :, :]
-                    sample = sample.view(sample.size(0), sample.size(0), sample.size(1))
-                            
-                    sample = sample.to(torch.float32)
-                    sample = sample.to(DEVICE)
-                    # network
-                    enc = self.model.encoder(sample)
-                    latent_mu = self.model.en_mu(enc)
-                    latent_logvar = self.model.en_logvar(enc)
-                    latent_logvar = torch.exp(0.5 * latent_logvar)
-            
-                    latent_dist = Normal(latent_mu, latent_logvar)
-                    z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
-                    z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]
-                    
-                    decoded = self.model.decoder(z)
-                    recon_mu = self.model.de_mu(decoded)
-                    recon_logvar = self.model.de_logvar(decoded)
-                    recon_logvar = torch.exp(0.5 * recon_logvar)
-                    # rec_z = self.model.reparameterize(recon_mu, recon_logvar)
-                    recon_dist = Normal(recon_mu, recon_logvar)
-                    p = recon_dist.log_prob(sample).exp().mean(dim=0) 
-                    # p = recon_dist.log_prob(sample).exp().mean() 
-                    sample_probabilitiess.append(p)
+                # network
+                enc = self.model.encoder(inp)
+                latent_mu = self.model.en_mu(enc)
+                latent_logvar = self.model.en_logvar(enc)
+                latent_logvar = torch.exp(0.5 * latent_logvar)           
+                latent_dist = Normal(latent_mu, latent_logvar)
+                z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
+                z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+                decoded = self.model.decoder(z)
+                recon_mu = self.model.de_mu(decoded)
+                recon_mu = recon_mu.view(self.L, *inp.shape)
+                recon_logvar = self.model.de_logvar(decoded)
+                recon_logvar = torch.exp(0.5 * recon_logvar)
+                recon_logvar = recon_logvar.view(self.L, *inp.shape)
+                recon_dist = Normal(recon_mu, recon_logvar)
+                rec_latent_prob_density = recon_dist.log_prob(inp).exp().mean(dim=0) 
+                rec_latent_probabilities.append(rec_latent_prob_density)
                 
                 val_data.append(inp) 
                 val_labels.append(labels)
                 valdata_rec.append(test_reconstructions) 
             
-            # self.valdata_rec = torch.cat(valdata_rec, dim = 0).to(DEVICE)    
-            # v_concatenated_prob = torch.cat(sample_probabilitiess, dim=0).to(DEVICE)                                     
-
-    #         #--------------------------------------------------------------------------- 
-    #         # Plot latent space dimensions
-    #         latent_space = torch.cat(latent_space, dim=0)
-    #         latent_space = latent_space.reshape(latent_space.shape[0],-1)
-            
-    #         # Plot latent space dimensions
-    #         num_plots = latent_space.shape[-1]
-    #         for i in range(num_plots-1):
-    #             plt.figure(figsize=(10,10))
-    #             plt.scatter(latent_space[:,i], latent_space[:,i+1], cmap="viridis")
-    #             plt.xlabel(f"dim {i+1}")
-    #             plt.ylabel(f"dim {i+2}")
-    #             plt.title(f'(Val data Dimensions {i+1} and {i+2})')
-    #             plt.colorbar()      
-    #             plt.show() 
-    #         #--------------------------------------------------------------------------- 
-            
-            # v_concatenated_rec_mu = torch.cat(total_rec_mu, dim=0).to(DEVICE)
-            # v_concatenated_rec_logvar = torch.cat(total_rec_sigma, dim=0).to(DEVICE)
-            v_concatenated_prob = torch.cat(sample_probabilitiess, dim=0).to(DEVICE) 
-           
-    #         v_recmu_array = v_concatenated_rec_mu.cpu().numpy() 
-    #         v_recsig_array = v_concatenated_rec_logvar.cpu().numpy() 
+            v_concatenated_prob = torch.cat(rec_latent_probabilities, dim=0).to(DEVICE)           
             v_prob_array = v_concatenated_prob.cpu().numpy() 
-            # avg_prob_density = v_concatenated_prob.mean(dim=0).mean(dim=-1)
             self.val_labels = torch.cat(val_labels)
             
             # Finding the best possible Threshold Value for Anomaly Detection              
@@ -138,7 +94,7 @@ class VAEAnomalyDetection():
             
             # Iterate over different values of y
             start = 0.0001
-            end = 0.5
+            end = 0.3
             step = 0.0001
             
             current_value = start
@@ -161,6 +117,8 @@ class VAEAnomalyDetection():
             self.threshold = best_threshold
             print("Best F1 Score from val dataset:", best_f1_score, '\n')
             print("Best Threshold from Val Data:", best_threshold, '\n')
+            threshold_txt = "Best Threshold from Val Data: " + str(self.threshold)
+            self.parameter_storage.write_tab("00", str(threshold_txt))
             
         return best_threshold
     
@@ -171,157 +129,51 @@ class VAEAnomalyDetection():
     def find_anomalies(self):
         
         self.model = torch.load(self.path_bestmodel)
-        self.model.eval() 
-        loss_crit_test = nn.MSELoss(reduction = 'none')  
-        # loss_crit_test = nn.BCELoss(reduction = 'none')  
+        self.model.eval()   
         
         self.L = 10               
         test_data = []
         test_labels = []
-        testdata_rec = []
-        test_rec_mu = []
-        test_rec_sigma = []
-        test_probabilities = []
-        latent_spacee = []
-        # with torch.no_grad():
-        #     for _, (inp,labels) in enumerate(self.test_data):                            
-        #         # get data
-        #         inp = inp.to(torch.float32)
-        #         inp = inp.to(DEVICE)                 
-        #         # network
-                
-        #         test_reconstructions = self.model(inp) 
-                
-        #         #------------------------------------------------------------------------
-        #         enc = self.model.encoder(inp)
-        #         latent_mu = self.model.en_mu(enc)
-        #         latent_logvar = self.model.en_logvar(enc)
-        #         latent_logvar  = torch.exp(0.5 * latent_logvar)
-                
-        #         latent_dist = Normal(latent_mu, latent_logvar)
-        #         z = latent_dist.rsample([self.L])  # shape: [L, batch_size, latent_size]
-        #         z  = (z.size(0) * z.size(1),) + z.size()[2:]
-                
-        #         for i in enumerate(z): 
-                
-        #             # z = self.model.reparameterize(latent_mu, latent_logvar)
-        #             # latent_spacee.append(z)
-        #             decoded = self.model.decoder(i)
-        #             recon_mu =  self.model.de_mu(decoded)
-        #             recon_logvar = self.model.de_logvar(decoded)
-        #             recon_logvar  = torch.exp(0.5 * recon_logvar)
-        #             test_rec_mu.append(recon_mu)
-        #             test_rec_sigma.append(recon_logvar)
-        #             recon_dist = Normal(recon_mu, recon_logvar )
-        #             p = recon_dist.log_prob(inp).exp.mean(dim=0).mean(dim=-1)  # vector of shape [batch_size]
-        #             test_probabilities.append(p)
-                
-        #         # rec_z = self.model.reparameterize(recon_mu, recon_logvar)
-        #         # mse_loss = loss_crit_test(test_reconstructions, inp)
-        #         # test_rec_mu.append(recon_mu)
-        #         # test_rec_sigma.append(recon_logvar)
-        #         # recon_dist = Normal(recon_mu, recon_logvar )
-        #         # p = recon_dist.log_prob(inp).exp()  # vector of shape [batch_size]
-        #         # test_probabilities.append(p)
-        #         # test_data.append(inp) 
-        #         # test_labels.append(labels) 
-        #         # testdata_rec.append(test_reconstructions)                                      
-
-        
-        sample_probabilities = [] 
-        avg_tot_probabilities = [] 
-        # Assuming self.test_data is your test data
+        testdata_rec = []                                          
+        rec_latent_probabilities = [] 
         with torch.no_grad():
             for _, (inp, labels) in enumerate(self.test_data):
                                 
                 inp = inp.to(torch.float32)
                 inp = inp.to(DEVICE)
-                test_reconstructions = self.model(inp)
-                
-                for i in range(inp.size(0)):
-                    sample = inp[i, :, :]
-                    sample = sample.view(sample.size(0), sample.size(0), sample.size(1))
-                            
-                    sample = sample.to(torch.float32)
-                    sample = sample.to(DEVICE)
-                    # network
-                    enc = self.model.encoder(sample)
-                    latent_mu = self.model.en_mu(enc)
-                    latent_logvar = self.model.en_logvar(enc)
-                    latent_logvar = torch.exp(0.5 * latent_logvar)
-            
-                    latent_dist = Normal(latent_mu, latent_logvar)
-                    z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
-                    z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]
-                    
-                    decoded = self.model.decoder(z)
-                    recon_mu = self.model.de_mu(decoded)
-                    recon_logvar = self.model.de_logvar(decoded)
-                    recon_logvar = torch.exp(0.5 * recon_logvar)
-                    # rec_z = self.model.reparameterize(recon_mu, recon_logvar)
-                    recon_dist = Normal(recon_mu, recon_logvar)
-                    p = recon_dist.log_prob(sample).exp().mean(dim=0) 
-                    # p_avg = recon_dist.log_prob(sample).exp().mean(dim=0).mean(dim=-1) 
-                    # p = recon_dist.log_prob(sample).exp().mean() 
-                    sample_probabilities.append(p)
-                    # avg_tot_probabilities.append(p_avg)
+                test_reconstructions = self.model(inp)      
+                # network
+                enc = self.model.encoder(inp)
+                latent_mu = self.model.en_mu(enc)
+                latent_logvar = self.model.en_logvar(enc)
+                latent_logvar = torch.exp(0.5 * latent_logvar)           
+                latent_dist = Normal(latent_mu, latent_logvar)
+                z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
+                z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+                decoded = self.model.decoder(z)
+                recon_mu = self.model.de_mu(decoded)
+                recon_mu = recon_mu.view(self.L, *inp.shape)
+                recon_logvar = self.model.de_logvar(decoded)
+                recon_logvar = torch.exp(0.5 * recon_logvar)
+                recon_logvar = recon_logvar.view(self.L, *inp.shape)
+                recon_dist = Normal(recon_mu, recon_logvar)
+                rec_latent_prob_density = recon_dist.log_prob(inp).exp().mean(dim=0) 
+                rec_latent_probabilities.append(rec_latent_prob_density)
                 
                 test_data.append(inp) 
                 test_labels.append(labels)
                 testdata_rec.append(test_reconstructions) 
             
             self.testdata_rec = torch.cat(testdata_rec, dim = 0).to(DEVICE)    
-            t_concatenated_prob = torch.cat(sample_probabilities, dim=0).to(DEVICE)   
+            t_concatenated_prob = torch.cat(rec_latent_probabilities, dim=0).to(DEVICE)   
                     
-                    # for i in range(L):
-                    #     latent_dist = Normal(latent_mu, latent_logvar)
-                    #     z_sample = latent_dist.rsample()  # shape: [batch_size, latent_size]
-            
-                    #     decoded = self.model.decoder(z_sample)
-                    #     recon_mu = self.model.de_mu(decoded)
-                    #     recon_logvar = self.model.de_logvar(decoded)
-                    #     recon_logvar = torch.exp(0.5 * recon_logvar)
-            
-                    #     recon_dist = Normal(recon_mu, recon_logvar)
-                    #     p = recon_dist.log_prob(inp).exp().mean(dim=0).mean(dim=-1)  # vector of shape [batch_size]
-                    #     sample_probabilities.append(p)
-
-
-    #--------------------------------------------------------------------------- 
-            # # Plot latent space dimensions
-            # latent_spacee = torch.cat(latent_spacee, dim=0)
-            # latent_spacee = latent_spacee.reshape(latent_spacee.shape[0],-1)
-            
-            # # Plot latent space dimensions
-            # num_plots = latent_spacee.shape[-1]
-            # for i in range(num_plots-1):
-            #     plt.figure(figsize=(10,10))
-            #     plt.scatter(latent_spacee[:,i], latent_spacee[:,i+1], cmap="viridis")
-            #     plt.xlabel(f"dim {i+1}")
-            #     plt.ylabel(f"dim {i+2}")
-            #     plt.title(f'(Test data Dimensions {i+1} and {i+2})')
-            #     plt.colorbar()      
-            #     plt.show() 
-            #--------------------------------------------------------------------------- 
-
-            # self.testdata_rec = torch.cat(testdata_rec, dim = 0).to(DEVICE)
-            # t_concatenated_rec_mu = torch.cat(test_rec_mu, dim=0).to(DEVICE)
-            # t_concatenated_rec_logvar = torch.cat(test_rec_sigma, dim=0).to(DEVICE)
-            # t_concatenated_prob = torch.cat(test_probabilities, dim=0).to(DEVICE) 
-           
-            # v_recmu_array = t_concatenated_rec_mu.cpu().numpy() 
-            # v_recsig_array = t_concatenated_rec_logvar.cpu().numpy() 
-            v_prob_array = t_concatenated_prob.cpu().numpy() 
-            # avg_prob_density = t_concatenated_prob.mean(dim=0).mean(dim=-1)
-                                
-           # testdata_rec_array = self.testdata_rec.cpu() 
+            v_prob_array = t_concatenated_prob.cpu().numpy()                                
             self.test_data_tensor = torch.cat(test_data, dim = 0)
             self.test_labels = torch.cat(test_labels)                     
                        
             threshold = self.threshold
             # threshold = 0.0001                              
             anomaly = (t_concatenated_prob < threshold).to(DEVICE)    
-            # anomaly = (t_concatenated_prob > threshold).to(DEVICE)
             # 1 = anomaly, 0 = normal            
             pred_labels_tensor = torch.where(anomaly, torch.tensor(1).to(DEVICE), torch.tensor(0).to(DEVICE))                         
             self.pred_labels = pred_labels_tensor
@@ -337,8 +189,9 @@ class VAEAnomalyDetection():
             # Count the number of zeros and ones
             normal_count = torch.sum(ground_truth_tensor_1d == 0)
             print("no of actual normal data points are:", normal_count, '\n')
-            anomaly_count = torch.sum(ground_truth_tensor_1d == 1)                                
-            print("no of actual anomaly data points are:", anomaly_count,'\n' ) 
+            grd_anomaly_count = torch.sum(ground_truth_tensor_1d == 1)                                
+            print("no of actual anomaly data points are:", grd_anomaly_count,'\n' ) 
+            grd_anm_txt = "no of actual anomaly data points are:" + str(grd_anomaly_count)
             
             ground_truth = ground_truth_tensor_1d.cpu().numpy()
                         
@@ -347,8 +200,9 @@ class VAEAnomalyDetection():
             
             normal_count = torch.sum(preds_tensor_1d == 0)
             print("no of predicited normal data points are:", normal_count, '\n') 
-            anomaly_count = torch.sum(preds_tensor_1d == 1)                                           
-            print("no of predicted anomaly data points are:", anomaly_count,'\n' ) 
+            pred_anomaly_count = torch.sum(preds_tensor_1d == 1)                                           
+            print("no of predicted anomaly data points are:", pred_anomaly_count ,'\n' ) 
+            pred_anm_txt = "no of predicted anomaly data points are:" + str(pred_anomaly_count)
             
             final_preds = preds_tensor_1d.cpu().numpy()
             
@@ -369,8 +223,11 @@ class VAEAnomalyDetection():
             prc_str = "AUPRC Score is: " + str(auprc)        
             
             self.parameter_storage.write_tab("Classification Report", str(report))
+            self.parameter_storage.write_tab("00", str(grd_anm_txt))
+            self.parameter_storage.write_tab("00", str(pred_anm_txt))
             self.parameter_storage.write_tab("00", str(roc_str))
             self.parameter_storage.write_tab("00", str(prc_str))
+            
             
             # Plotting the data and visualizing anomalies
             testdata_plotting(path = self.path,
