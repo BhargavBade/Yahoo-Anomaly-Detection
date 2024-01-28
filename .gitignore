@@ -12,3 +12,5 @@ Network/auto_encoder.py
 *.yaml
 *.yaml
 *.yaml
+Configuration/config_yahoo.yaml
+main_stats.py

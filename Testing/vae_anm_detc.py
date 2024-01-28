@@ -14,13 +14,12 @@ from torch.distributions import Normal
 
 class VAEAnomalyDetection():
         
-    def __init__(self, path, study_config: dict, data_config: dict):    
+    def __init__(self, path, data_config: dict):    
                   
         self.path = path
         self.threshold = None
         self.pred_labels = None
         self.testt_dataa = None
-        self.study_config = study_config
         self.data_config = data_config
                                                       
         # get data
@@ -97,18 +96,17 @@ class VAEAnomalyDetection():
             end = 0.3
             step = 0.0001
             
-            current_value = start
-            while current_value <= end:
+            probability = start
+            while probability <= end:
                 # print(current_value)
-                threshold = float(current_value)
+                threshold = float(probability)
                 v_pred_labels_tensor = (v_concatenated_prob < threshold).to(DEVICE)
                 v_ground_truth_tensor_1d = self.val_labels.view(-1)
                 v_preds_tensor_1d = v_pred_labels_tensor.view(-1)
                 v_ground_truth = v_ground_truth_tensor_1d.cpu().numpy()
                 v_final_preds = v_preds_tensor_1d.cpu().numpy()
-                val_f1_score = metrics.f1_score(v_ground_truth, v_final_preds)
-                
-                current_value += step
+                val_f1_score = metrics.f1_score(v_ground_truth, v_final_preds)               
+                probability += step
                 
                 if val_f1_score > best_f1_score:
                     best_f1_score = val_f1_score
@@ -171,8 +169,7 @@ class VAEAnomalyDetection():
             self.test_data_tensor = torch.cat(test_data, dim = 0)
             self.test_labels = torch.cat(test_labels)                     
                        
-            threshold = self.threshold
-            # threshold = 0.0001                              
+            threshold = self.threshold                             
             anomaly = (t_concatenated_prob < threshold).to(DEVICE)    
             # 1 = anomaly, 0 = normal            
             pred_labels_tensor = torch.where(anomaly, torch.tensor(1).to(DEVICE), torch.tensor(0).to(DEVICE))                         
@@ -189,9 +186,9 @@ class VAEAnomalyDetection():
             # Count the number of zeros and ones
             normal_count = torch.sum(ground_truth_tensor_1d == 0)
             print("no of actual normal data points are:", normal_count, '\n')
-            grd_anomaly_count = torch.sum(ground_truth_tensor_1d == 1)                                
-            print("no of actual anomaly data points are:", grd_anomaly_count,'\n' ) 
-            grd_anm_txt = "no of actual anomaly data points are:" + str(grd_anomaly_count)
+            true_anomaly_count = torch.sum(ground_truth_tensor_1d == 1)                                
+            print("no of actual anomaly data points are:", true_anomaly_count,'\n' ) 
+            true_anm_txt = "no of actual anomaly data points are:" + str(true_anomaly_count)
             
             ground_truth = ground_truth_tensor_1d.cpu().numpy()
                         
@@ -223,7 +220,7 @@ class VAEAnomalyDetection():
             prc_str = "AUPRC Score is: " + str(auprc)        
             
             self.parameter_storage.write_tab("Classification Report", str(report))
-            self.parameter_storage.write_tab("00", str(grd_anm_txt))
+            self.parameter_storage.write_tab("00", str(true_anm_txt))
             self.parameter_storage.write_tab("00", str(pred_anm_txt))
             self.parameter_storage.write_tab("00", str(roc_str))
             self.parameter_storage.write_tab("00", str(prc_str))

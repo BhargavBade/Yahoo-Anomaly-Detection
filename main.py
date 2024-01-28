@@ -2,11 +2,13 @@
 This script trains an Mnist AutoEncoder using the ccb_dl_package
 """
 # append parent folder sys.path for imports
-from ParamOptimizer.optuna_param_optimizer import MyOptimizer
+from ParamOptimizer.optuna_param_optimizer_bof import MyOptimizer
+# from ParamOptimizer.optuna_param_optimizer import MyOptimizer
 import ccbdl
 import os
 import sys
 import inspect
+from Network.ITF import functions as f
 from Testing.lae_anm_detc import LAEAnomalyDetection
 from Testing.vae_anm_detc import VAEAnomalyDetection
 
@@ -19,8 +21,10 @@ if __name__ == '__main__':
 
     # Get Config
     config_loader = ccbdl.config_loader.loaders.ConfigurationLoader()
-    config_path = os.path.join(os.getcwd(), "Configuration", "config_yahoo.yaml")
+    # config_path = os.path.join(os.getcwd(), "Configuration", "config_yahoo.yaml")
+    config_path = os.path.join(os.getcwd(), "Configuration", "config_yahoo_bof.yaml")
     config = config_loader.read_config(config_path)
+
 
     # Get Configurations
     network_config = config["Network"]
@@ -48,10 +52,20 @@ if __name__ == '__main__':
     study = study_config["study_name"]
     
     if "lae" in study.lower():   
-        anomaly_detector = LAEAnomalyDetection(study_path, study_config, data_config)
+        anomaly_detector = LAEAnomalyDetection(study_path, data_config)
     
     elif "var" in study.lower():
-        anomaly_detector = VAEAnomalyDetection(study_path, study_config, data_config)
+        anomaly_detector = VAEAnomalyDetection(study_path, data_config)
+        
+    elif "bof" in study.lower():
+        # additional stuff, definition of possible functions in the bag
+        network_config["function_pool"] = [
+                                           (f.Gaus, 3, True), 
+                                           (f.Cos, 3, True), 
+                                           (f.Sin, 3, True), 
+                                           (f.Lin, 2, True), 
+                                           (f.Exp_Sat, 3, True)]
+        # anomaly_detector = LAEAnomalyDetection(study_path, data_config)
     
     else:
         print("study not found")     
@@ -65,7 +79,7 @@ if __name__ == '__main__':
     # Compare Runs
     opti.eval_study()
     
-    # Testing
-    # Finding threshold and anomalies
-    anomaly_detector.find_threshold()   
-    anomaly_detector.find_anomalies()
+    # # Testing
+    # # Finding threshold and anomalies
+    # anomaly_detector.find_threshold()   
+    # anomaly_detector.find_anomalies()

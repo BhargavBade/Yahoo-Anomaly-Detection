@@ -69,7 +69,7 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
     # @tracer
     def _train_epoch(self, train=True):
         self.network.train() 
-        self.L = 16
+        self.L = 32
         self.prior = Normal(0, 1)
         losses = 0               
         for _, (inp, _)  in enumerate(self.train_data):

@@ -1,7 +1,3 @@
-""" 
-This script trains an Mnist AutoEncoder using the ccb_dl_package
-"""
-# append parent folder sys.path for imports
 import ccbdl
 import os
 import sys

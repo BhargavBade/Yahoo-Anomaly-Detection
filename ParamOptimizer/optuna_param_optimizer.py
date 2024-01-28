@@ -14,6 +14,7 @@ from ccbdl.utils import DEVICE
 import torch
 from ccbdl.storages import storages
 from Plotting.latentspace_plotting import visualize_latent_space
+import Network
 
 class MyOptimizer(BaseOptunaParamOptimizer):
     # @tracer
@@ -119,14 +120,33 @@ class MyOptimizer(BaseOptunaParamOptimizer):
             
             visualize_latent_space(self.study_path, self.train_data, self.network, self.learner)
        
+        elif "bof" in study.lower():
+            
+            self.network = getattr(Network,self.network_config["name"] )(self.network_config).to(DEVICE)
+            
+            self.learner = LearnAutoEncoder(trial_path,
+                                        trial,
+                                        self.network,                                       
+                                        self.train_data,
+                                        self.test_data,
+                                        self.val_data,   
+                                        self.learner_config,
+                                        task=self.task,
+                                        logging=self.logging)
         else:
             print("study not found")    
-                                    
+                                               
         print("\n\n******* Start Train AutoEncoder *******")
 
         self.learner.parameter_storage.store(suggested, header = "suggested_parameters")
         self.learner.fit(test_epoch_step=self.learner_config["testevery"])
         print("\n******* Train AutoEncoder Done *******")
+               
+        #---------------------------------------------------------------------------------- 
+        self.store_config(self.data_config, self.optimize_config,
+                          self.study_config, self.network_config,
+                          self.learner_config, trial_path)
+        #----------------------------------------------------------------------------------
         
         # Inside the loop, update the best_state_dict if the current trial has better performance
         learner_best_values = self.learner.best_values

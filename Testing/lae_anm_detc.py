@@ -14,13 +14,12 @@ from Plotting.anomaly_plot import testdata_plotting
 
 class LAEAnomalyDetection():
         
-    def __init__(self, path, study_config: dict, data_config: dict):    
+    def __init__(self, path, data_config: dict):    
                   
         self.path = path
         self.threshold = None
         self.pred_labels = None
         self.testt_dataa = None
-        self.study_config = study_config
         self.data_config = data_config
                                                       
         # get data
@@ -69,30 +68,40 @@ class LAEAnomalyDetection():
             v_loss_array = v_concatenated_tensor.cpu().numpy()                             
             self.val_labels = torch.cat(val_labels)
             
-            # Finding the best possible Threshold Value for Anomaly Detection              
+            # Finding the best possible Threshold Value for Anomaly Detection    
+            
             best_f1_score = 0.0
             best_threshold = 0.0
-            best_y = 0
+            best_factor = 0.0
             
-            # Iterate over different values of y
-            for y in range(1, 101):  # Adjust the range according to your requirements
-                threshold = float(y * (np.mean(v_loss_array)) + (np.std(v_loss_array)))
+            start = 0.2
+            end = 50
+            step = 0.2
+            
+            factor = start
+            while factor <= end:
+                threshold = float(factor * (np.mean(v_loss_array)) + (np.std(v_loss_array)))
                 v_pred_labels_tensor = (v_concatenated_tensor > threshold).to(DEVICE)
                 v_ground_truth_tensor_1d = self.val_labels.view(-1)
                 v_preds_tensor_1d = v_pred_labels_tensor.view(-1)
                 v_ground_truth = v_ground_truth_tensor_1d.cpu().numpy()
                 v_final_preds = v_preds_tensor_1d.cpu().numpy()
                 val_f1_score = metrics.f1_score(v_ground_truth, v_final_preds)
+                factor += step
                 
                 if val_f1_score > best_f1_score:
                     best_f1_score = val_f1_score
                     best_threshold = threshold
-                    best_y = y
+                    best_factor = factor
                             
             self.threshold = best_threshold
             print("Best F1 Score from val dataset:", best_f1_score, '\n')
             print("Best Threshold from Val Data:", best_threshold, '\n')
-            print("Value of 'y' for the best F1 Score:", best_y, '\n')
+            print("Value of 'factor' for the best F1 Score:", best_factor, '\n')           
+            threshold_txt = "Best Threshold from Val Data for the best F1 Score: " + str(self.threshold)
+            best_factor_txt = "Best factor value for the best F1 Score:" + str(best_factor)
+            self.parameter_storage.write_tab("00", str(best_factor_txt))
+            self.parameter_storage.write_tab("00", str(threshold_txt))           
             
         return best_threshold
     
@@ -145,8 +154,9 @@ class LAEAnomalyDetection():
             # Count the number of zeros and ones
             normal_count = torch.sum(ground_truth_tensor_1d == 0)
             print("no of actual normal data points are:", normal_count, '\n')
-            anomaly_count = torch.sum(ground_truth_tensor_1d == 1)                                
-            print("no of actual anomaly data points are:", anomaly_count,'\n' ) 
+            true_anomaly_count = torch.sum(ground_truth_tensor_1d == 1)                                
+            print("no of actual anomaly data points are:", true_anomaly_count,'\n') 
+            true_anm_txt = "no of actual anomaly data points are:" + str(true_anomaly_count)
             
             ground_truth = ground_truth_tensor_1d.cpu().numpy()
                         
@@ -155,8 +165,9 @@ class LAEAnomalyDetection():
             
             normal_count = torch.sum(preds_tensor_1d == 0)
             print("no of predicited normal data points are:", normal_count, '\n') 
-            anomaly_count = torch.sum(preds_tensor_1d == 1)                                           
-            print("no of predicted anomaly data points are:", anomaly_count,'\n' ) 
+            pred_anomaly_count = torch.sum(preds_tensor_1d == 1)                                           
+            print("no of predicted anomaly data points are:", pred_anomaly_count,'\n')
+            pred_anm_txt = "no of predicted anomaly data points are:" + str(pred_anomaly_count)
             
             final_preds = preds_tensor_1d.cpu().numpy()
             
@@ -177,6 +188,8 @@ class LAEAnomalyDetection():
             prc_str = "AUPRC Score is: " + str(auprc)        
             
             self.parameter_storage.write_tab("Classification Report", str(report))
+            self.parameter_storage.write_tab("00", str(true_anm_txt))
+            self.parameter_storage.write_tab("00", str(pred_anm_txt))
             self.parameter_storage.write_tab("00", str(roc_str))
             self.parameter_storage.write_tab("00", str(prc_str))
             

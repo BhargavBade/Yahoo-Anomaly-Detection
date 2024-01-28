@@ -2,38 +2,38 @@
 Optimized: 
   learning_rate: 
     - float
-    - 1.0e-4
-    - 1.0e-3
+    - 0.001
+    - 0.002
   hidden_size:
     - categorical
-    - [5, 10, 20]
+    - [20]
 
 Data:
     dataset: yahoo
-    subset: A3
+    subset: A1
     task: anomaly
     batch_size: 64
     worker: 0
-    scaler: mean
+    scaler: "01"
     path: "Datasets"
     shuffle_train: False
     
 Study:  
-  number_of_trials: 5
+  number_of_trials: 3
   direction: minimize
   optimization_target: TrainLoss
-  study_name: VarStudyofYahooA3
+  study_name: LAEStudyofYahooA1_xxxxxxxxxxx
 
 Network:
-  name: VarAutoEncoder
+  name: LinAutoEncoder
   act_function: Tanh
   input_size: 120
   
 Learning:
-  num_epochs: 100
+  num_epochs: 3
   testevery: 1
   optimizer: Adam
   scheduler: StepLR
-  scheduler_step: 8
+  scheduler_step: 5
   gamma: 0.8
   criterion: MSELoss

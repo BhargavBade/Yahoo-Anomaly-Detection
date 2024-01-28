@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 import os
 import numpy as np
 from ccbdl.storages import storages
@@ -8,7 +9,8 @@ def testdata_plotting(path,
                       testdata_rec, 
                       test_labels, 
                       pred_labels, 
-                      figure_storage):
+                      figure_storage,
+                      random_seed=42):
                         
     figs = []
     names = []   
@@ -23,24 +25,26 @@ def testdata_plotting(path,
     rec_testdata = rec_data_tensor.numpy()
     testdata_labels = actual_labels.numpy()
     predicted_labels = predicted_labels.numpy()
-
-    random_indices = np.random.choice(testdata.shape[0], size=120, replace=False)
-
+    
     figures = 20
-    subplots_per_figure = 6
-
+    subplots_per_figure = 1
+    
+    np.random.seed(random_seed)  # Set the random seed
+    random_indices = np.random.choice(testdata.shape[0], size=figures * subplots_per_figure, 
+                                      replace=False)
+   
     for f in range(figures):
-        fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(20, 15))
-        fig.suptitle(f"Figure {f + 1}")
-        name = f"Figure {f + 1}"
+        fig, ax = plt.subplots(figsize=(5, 4))
+        fig.suptitle(f"sample {f + 1}")
+        name = f"{f + 1}"        
 
-        for s, ax in enumerate(axs.flat):
-            idx = f * subplots_per_figure + s
+        for s in range(subplots_per_figure):
+            idx = random_indices[f * subplots_per_figure + s] % testdata.shape[0]
 
-            data = testdata[random_indices[idx]]
-            rec_data = rec_testdata[random_indices[idx]]
-            true_labels = testdata_labels[random_indices[idx]]
-            pred_labels = predicted_labels[random_indices[idx]]
+            data = testdata[idx]
+            rec_data = rec_testdata[idx]
+            true_labels = testdata_labels[idx]
+            pred_labels = predicted_labels[idx]
 
             flat_data = data.flatten()
             flat_rec_data = rec_data.flatten()
@@ -53,18 +57,83 @@ def testdata_plotting(path,
             pred_label_indices = np.where(flat_pred_labels == 1)[0]
             pred_label_values = flat_data[pred_label_indices]
 
-            ax.plot(flat_data)
-            ax.plot(flat_rec_data)
+            ax.plot(flat_data, label='org data')
+            ax.plot(flat_rec_data, label='rec data')
+            
+            # Scatter Plot
             ax.scatter(true_label_indices, true_label_values, color='red', 
-                       label='true_labels', alpha=0.6)
+                       marker='o', label='true anm', alpha=0.5, s=100)
             ax.scatter(pred_label_indices, pred_label_values, color='green', 
-                       marker='x', label='pred_labels', s=100)
+                       marker='x', label='pred anm', s=150)
+            
+            ax.legend(fontsize='small', loc="best")
 
-            ax.legend(loc="best")
-
-        plt.tight_layout()
+            plt.tight_layout()
 
         figs.append(fig)
-        names.append(os.path.join("Test", "Random_Sample_" + name))
+        names.append(os.path.join("AnmTest", "Figure_" + name))
 
-    fig_storage.store_multi(figs, names, folder="", dpis=False)
+        fig_storage.store_multi(figs, names, folder="", dpis=False)
+
+#----------------------------------------------------------------------------------- 
+    # for f in range(figures):
+    #     fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(20, 15))
+    #     fig.suptitle(f"Figure {f + 1}")
+    #     name = f"Figure {f + 1}"
+
+    #     for s, ax in enumerate(axs.flat):
+    #         idx = f * subplots_per_figure + s
+
+    #         data = testdata[random_indices[idx]]
+    #         rec_data = rec_testdata[random_indices[idx]]
+    #         true_labels = testdata_labels[random_indices[idx]]
+    #         pred_labels = predicted_labels[random_indices[idx]]
+
+    #         flat_data = data.flatten()
+    #         flat_rec_data = rec_data.flatten()
+    #         flat_true_labels = true_labels.flatten()
+    #         flat_pred_labels = pred_labels.flatten()
+
+    #         true_label_indices = np.where(flat_true_labels == 1)[0]
+    #         true_label_values = flat_data[true_label_indices]
+
+    #         pred_label_indices = np.where(flat_pred_labels == 1)[0]
+    #         pred_label_values = flat_data[pred_label_indices]
+
+    #         ax.plot(flat_data, label = 'Original Data')
+    #         ax.plot(flat_rec_data, label = 'Reconstructed Data')
+            
+    #         # # Vertical Lines
+            
+    #         # # Plot red vertical lines for true label values
+    #         # ymin_true = min(flat_data)
+    #         # ymax_true = max(flat_data)
+    #         # for true_label_index, true_label_value in zip(true_label_indices, true_label_values):
+    #         #     ax.axvline(x=true_label_index, ymin=ymin_true, ymax=ymax_true, color='red', 
+    #         #                 linestyle='-', linewidth= 2, alpha=0.9)
+            
+    #         # # Add green dashed lines for predicted label values
+    #         # ymin_pred = min(flat_data)
+    #         # ymax_pred = max(flat_data)
+    #         # for pred_label_index, pred_label_value in zip(pred_label_indices, pred_label_values):
+    #         #     ax.axvline(x=pred_label_index, ymin=ymin_pred, ymax=ymax_pred, color='green', 
+    #         #                 linestyle='--', linewidth= 3, alpha=0.8)
+            
+    #         # # Import Line2D from matplotlib.lines
+    #         # line1 = mlines.Line2D([], [], color='blue', linewidth=2, linestyle='-')
+    #         # line2 = mlines.Line2D([], [], color='orange', linewidth=2, linestyle='-')
+    #         # line3 = mlines.Line2D([], [], color='red', linewidth=2, linestyle='-')
+    #         # line4 = mlines.Line2D([], [], color='green', linewidth=3, linestyle='--') 
+            
+    #         # # Add handles for the legend
+    #         # ax.legend([line1, line2, line3, line4],
+    #         #           ['Original Data', 'Reconstructed Data', 'True Anomaly', 'Predicted Anomaly'],
+    #         #           loc="best")
+            
+    #     plt.tight_layout()
+
+    #     figs.append(fig)
+    #     names.append(os.path.join("Test", "Random_Sample_" + name))
+
+    # fig_storage.store_multi(figs, names, folder="", dpis=False)
+#-----------------------------------------------------------------------------------     

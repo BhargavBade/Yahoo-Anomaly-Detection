@@ -3,7 +3,6 @@ from Data.prepare_data import prepare_data
 from ccbdl.utils import DEVICE
 
 class BaseAnomalyStats():
- # def __init__(self, path, network):
   def __init__(self, data_config: dict):    
                
      self.data_config = data_config
