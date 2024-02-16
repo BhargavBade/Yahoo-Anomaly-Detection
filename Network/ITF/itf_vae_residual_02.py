@@ -1,12 +1,15 @@
+
 import torch
 from ccbdl.network.base import BaseNetwork
 
-from Network.ITF.itf_autoencoder import Autoencoder
+from itf_var_autoencoder import VarAutoencoder
 
 from ccbdl.utils import DEVICE
 from Network.ITF import functions as f
 
-class ITFResidualAutoencoder(BaseNetwork):
+
+
+class ITFResidualVarAutoencoder(BaseNetwork):
     def __init__(self, network_config: dict):
         super().__init__("Interpretable TimeSeries Feature (IFT-RES-AE)", False)
         
@@ -22,11 +25,11 @@ class ITFResidualAutoencoder(BaseNetwork):
                 
         self.layers = torch.nn.ModuleList()
         for i in range(stages):
-            self.layers.append(Autoencoder(window_length, 
-                                           function_pool, 
-                                           attention,
-                                           k,
-                                           pass_z))
+            self.layers.append(VarAutoencoder(window_length, 
+                                               function_pool, 
+                                               attention,
+                                               k,
+                                               pass_z))
 
         
         
@@ -80,7 +83,7 @@ if __name__ == '__main__':
     data = torch.rand(64, 1, network_config["window_length"]).to(DEVICE)
 
     # get model
-    net = ITFResidualAutoencoder(network_config).to(DEVICE)
+    net = ITFResidualVarAutoencoder(network_config).to(DEVICE)
 
     out = net(data)
 

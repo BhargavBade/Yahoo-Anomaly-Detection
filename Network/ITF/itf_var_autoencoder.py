@@ -1,11 +1,12 @@
 import torch
 from ccbdl.network.base import BaseNetwork
 
-from itf_encoder import Encoder
-from itf_decoder import Decoder
+from itf_vae_encoder import VarEncoder
+from itf_vae_decoder import VarDecoder
 
 from ccbdl.utils import DEVICE
 from Network.ITF import functions as f
+
 
 def get_params(idx:int, count:int, data:torch.tensor):
     if count == 1:
@@ -55,7 +56,7 @@ def get_info(out_zf, out_zp, function_pool):
     return info
 
 
-class Autoencoder(BaseNetwork):
+class VarAutoencoder(BaseNetwork):
     def __init__(self,
                  inp_size: int,
                  function_pool:list,
@@ -69,14 +70,14 @@ class Autoencoder(BaseNetwork):
         num_functions = len(function_pool)
         num_parameters = sum([i[1] for i in function_pool])
                  
-        self.encoder = Encoder(inp_size,
+        self.encoder = VarEncoder(inp_size,
                                    num_functions,
                                    num_parameters,
                                    attention,
                                    k,
                                    pass_z)
 
-        self.decoder = Decoder(function_pool, inp_size)
+        self.decoder = VarDecoder(function_pool, inp_size)
 
     def encode(self, inp: torch.tensor):
         return self.encoder(inp)
@@ -114,7 +115,7 @@ if __name__ == '__main__':
     data = torch.rand(bs, 1, window_length).to(DEVICE)
 
     # get model
-    net = Autoencoder(window_length, 
+    net = VarAutoencoder(window_length, 
                       function_pool,
                       attention,
                       k,

@@ -62,21 +62,28 @@ class VAEAnomalyDetection():
                 test_reconstructions = self.model(inp)
                 
                 # network
-                enc = self.model.encoder(inp)
-                latent_mu = self.model.en_mu(enc)
-                latent_logvar = self.model.en_logvar(enc)
-                latent_logvar = torch.exp(0.5 * latent_logvar)           
-                latent_dist = Normal(latent_mu, latent_logvar)
-                z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
-                z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
-                decoded = self.model.decoder(z)
-                recon_mu = self.model.de_mu(decoded)
-                recon_mu = recon_mu.view(self.L, *inp.shape)
-                recon_logvar = self.model.de_logvar(decoded)
+                encoded = self.model.encoder(inp)
+                # latent_mu = self.model.en_mu(enc)
+                # latent_mu = self.model.encoder.backbone(inp)
+                # latent_logvar = self.network.encoder.backbone(inp)                          
+                # latent_logvar = self.model.en_logvar(enc)
+                # latent_logvar = self.model.encoder.backbone(inp) 
+                # latent_logvar = torch.exp(0.5 * latent_logvar)           
+                # latent_dist = Normal(latent_mu, latent_logvar)
+                # z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
+                # z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+                # decoded = self.model.decoder(z)               
+                decoded = self.model.decoder(*encoded)                       
+                # recon_mu = self.model.de_mu(decoded)
+                recon_mu = decoded
+                # recon_mu = recon_mu.view(self.L, *inp.shape)
+                # recon_logvar = self.model.de_logvar(decoded)               
+                recon_logvar = decoded                
                 recon_logvar = torch.exp(0.5 * recon_logvar)
-                recon_logvar = recon_logvar.view(self.L, *inp.shape)
+                # recon_logvar = recon_logvar.view(self.L, *inp.shape)
                 recon_dist = Normal(recon_mu, recon_logvar)
-                rec_latent_prob_density = recon_dist.log_prob(inp).exp().mean(dim=0) 
+                # rec_latent_prob_density = recon_dist.log_prob(inp).exp().mean(dim=0) 
+                rec_latent_prob_density = recon_dist.log_prob(inp).exp()
                 rec_latent_probabilities.append(rec_latent_prob_density)
                 
                 val_data.append(inp) 
@@ -92,15 +99,16 @@ class VAEAnomalyDetection():
             best_threshold = 0.0
             
             # Iterate over different values of y
-            start = 0.0001
+            start = 0.001
             end = 0.3
-            step = 0.0001
+            step = 0.001
             
             probability = start
             while probability <= end:
                 # print(current_value)
                 threshold = float(probability)
-                v_pred_labels_tensor = (v_concatenated_prob < threshold).to(DEVICE)
+                val_anomaly = (v_concatenated_prob < threshold).to(DEVICE)
+                v_pred_labels_tensor = torch.where(val_anomaly, torch.tensor(1).to(DEVICE), torch.tensor(0).to(DEVICE))
                 v_ground_truth_tensor_1d = self.val_labels.view(-1)
                 v_preds_tensor_1d = v_pred_labels_tensor.view(-1)
                 v_ground_truth = v_ground_truth_tensor_1d.cpu().numpy()
@@ -141,21 +149,25 @@ class VAEAnomalyDetection():
                 inp = inp.to(DEVICE)
                 test_reconstructions = self.model(inp)      
                 # network
-                enc = self.model.encoder(inp)
-                latent_mu = self.model.en_mu(enc)
-                latent_logvar = self.model.en_logvar(enc)
-                latent_logvar = torch.exp(0.5 * latent_logvar)           
-                latent_dist = Normal(latent_mu, latent_logvar)
-                z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
-                z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
-                decoded = self.model.decoder(z)
-                recon_mu = self.model.de_mu(decoded)
-                recon_mu = recon_mu.view(self.L, *inp.shape)
-                recon_logvar = self.model.de_logvar(decoded)
+                encoded = self.model.encoder(inp)
+                # latent_mu = self.model.en_mu(encoded)
+                # latent_logvar = self.model.en_logvar(encoded)
+                # latent_logvar = torch.exp(0.5 * latent_logvar)           
+                # latent_dist = Normal(latent_mu, latent_logvar)
+                # z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
+                # z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+                # decoded = self.model.decoder(z)
+                decoded = self.model.decoder(*encoded)
+                # recon_mu = self.model.de_mu(decoded)               
+                recon_mu = decoded               
+                # recon_mu = recon_mu.view(self.L, *inp.shape)
+                # recon_logvar = self.model.de_logvar(decoded)
+                recon_logvar = decoded  
                 recon_logvar = torch.exp(0.5 * recon_logvar)
-                recon_logvar = recon_logvar.view(self.L, *inp.shape)
+                # recon_logvar = recon_logvar.view(self.L, *inp.shape)
                 recon_dist = Normal(recon_mu, recon_logvar)
-                rec_latent_prob_density = recon_dist.log_prob(inp).exp().mean(dim=0) 
+                # rec_latent_prob_density = recon_dist.log_prob(inp).exp().mean(dim=0) 
+                rec_latent_prob_density = recon_dist.log_prob(inp).exp()
                 rec_latent_probabilities.append(rec_latent_prob_density)
                 
                 test_data.append(inp) 

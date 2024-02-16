@@ -21,8 +21,8 @@ if __name__ == '__main__':
 
     # Get Config
     config_loader = ccbdl.config_loader.loaders.ConfigurationLoader()
-    # config_path = os.path.join(os.getcwd(), "Configuration", "config_yahoo.yaml")
-    config_path = os.path.join(os.getcwd(), "Configuration", "config_yahoo_bof.yaml")
+    # config_path = os.path.join(os.getcwd(), "Configuration", "config_sinewaves.yaml")
+    config_path = os.path.join(os.getcwd(), "Configuration", "config_sinewaves_bof.yaml")
     config = config_loader.read_config(config_path)
 
 
@@ -60,11 +60,11 @@ if __name__ == '__main__':
     elif "bof" in study.lower():
         # additional stuff, definition of possible functions in the bag
         network_config["function_pool"] = [
-                                           (f.Gaus, 3, True), 
-                                           (f.Cos, 3, True), 
-                                           (f.Sin, 3, True), 
-                                           (f.Lin, 2, True), 
-                                           (f.Exp_Sat, 3, True)]
+                                            # (f.Gaus, 3, True), 
+                                            (f.Cos, 3, True), 
+                                            (f.Sin, 3, True), 
+                                            (f.Lin, 2, True), 
+                                            (f.Exp_Sat, 3, True)]
         # anomaly_detector = LAEAnomalyDetection(study_path, data_config)
     
     else:

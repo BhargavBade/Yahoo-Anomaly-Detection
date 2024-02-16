@@ -93,7 +93,8 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
         with torch.no_grad():
             for i, (inp, _) in enumerate(self.test_data):
                 inp = inp.to(torch.float32)
-                inp = inp.to(DEVICE)               
+                inp = inp.to(DEVICE) 
+                
                 reconstructions = self.network(inp)
                 loss += self.criterion(reconstructions, inp).item()
                 

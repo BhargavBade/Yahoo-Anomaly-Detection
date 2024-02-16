@@ -26,7 +26,7 @@ def testdata_plotting(path,
     testdata_labels = actual_labels.numpy()
     predicted_labels = predicted_labels.numpy()
     
-    figures = 20
+    figures = 30
     subplots_per_figure = 1
     
     np.random.seed(random_seed)  # Set the random seed

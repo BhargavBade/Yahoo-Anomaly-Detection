@@ -1,14 +1,15 @@
+
 import torch
 import torch.nn as nn
-
-from Network.ITF.itf_backbone import Backbone
+from collections import OrderedDict
+# from Network.ITF.itf_backbone import Backbone
 from Network.ITF.itf_function_head import FunctionHead
 from Network.ITF.itf_param_head import ParameterHead
 
 from ccbdl.utils import DEVICE
 
 
-class Encoder(nn.Module):
+class VarEncoder(nn.Module):
     def __init__(self,
                  inp_size: int,
                  num_functions: int,
@@ -21,27 +22,41 @@ class Encoder(nn.Module):
         self.pass_z = pass_z
         
         # create backbone
-        self.backbone = Backbone(inp_size)
+        
+        # self.backbone = Backbone(inp_size)
+        
+        self.out_size = inp_size//4
+        
+        self.backbone = nn.Sequential(OrderedDict([
+                                      ('b_lin_1',   nn.Linear(inp_size, inp_size*3)),
+                                      ('b_relu_1',  nn.ReLU()),
+                                      ('b_lin_2',   nn.Linear(inp_size*3, inp_size)),
+                                      ('b_relu_2',  nn.ReLU()),
+                                      ('b_lin_3',   nn.Linear(inp_size, self.out_size)),
+                                      ('b_relu_3',  nn.Sigmoid())]))
         
         # define inputs for all heads
         if self.pass_z:
-            parameter_head_input = self.backbone.out_size + num_functions 
+            parameter_head_input = self.out_size + num_functions 
             
         else:
-            parameter_head_input = self.backbone.out_size
+            parameter_head_input = self.out_size
 
         # create function head
-        self.function_head = FunctionHead(self.backbone.out_size,
+        self.function_head = FunctionHead(self.out_size,
                                           num_functions,
                                           attention,
                                           k)
-
-
-        # create parameter head
         
+        # create parameter head
         self.parameter_head = ParameterHead(parameter_head_input,
                                             num_parameters)
-
+        
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        z_reparametrized = mu + eps * std
+        return z_reparametrized    
 
 
     def forward(self, inp: torch.tensor):
@@ -53,9 +68,12 @@ class Encoder(nn.Module):
 
         if self.pass_z:
             out_b = torch.cat((out_b, zf), dim=-1)
-
+        
         # parameter head
-        zp = self.parameter_head(out_b)
+        latent_mu = out_b
+        latent_logvar = out_b
+        z = self.reparameterize(latent_mu, latent_logvar)
+        zp = self.parameter_head(z)
 
         return zf, zp
 
@@ -73,7 +91,7 @@ if __name__ == '__main__':
     attention = "soft"
     pass_z = False
 
-    net = Encoder(window_length,
+    net = VarEncoder(window_length,
                  num_functions,
                  num_parameters,
                  attention,

@@ -14,3 +14,5 @@ Network/auto_encoder.py
 *.yaml
 Configuration/config_yahoo.yaml
 main_stats.py
+Plotting/anomaly_plot.py
+Plotting/anomaly_plot.py

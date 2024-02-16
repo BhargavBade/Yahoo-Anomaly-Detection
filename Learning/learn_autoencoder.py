@@ -43,14 +43,13 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
         self.trial = trial
         self.parameter_storage.equal_signs()
         self.criterion = getattr(torch.nn, self.criterion)()  #For LAE Network
-        # self.criterion = getattr(torch.nn, self.criterion)(reduction = 'sum')
         self.optimizer = getattr(torch.optim, self.optimizer)(
             self.network.parameters(), lr=self.learning_rate)
 
         self.scheduler = getattr(torch.optim.lr_scheduler, self.scheduler)(
             self.optimizer, self.scheduler_step, gamma=self.gamma)
         # self.plotter.register_custom_plot(ReconstructionPlot(self))
-        self.plotter.register_custom_plot(StaticReconstructions(self, 6, **kwargs))  #__added_line__
+        self.plotter.register_custom_plot(StaticReconstructions(self, 8, **kwargs))  #__added_line__
         self.plotter.register_default_plot(ReconstructionLosses(self))
         
         self.best_state_dict = None

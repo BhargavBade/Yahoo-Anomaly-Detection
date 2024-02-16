@@ -61,7 +61,7 @@ class MyVarAutoEncoder(BaseNetwork):
             
 if __name__ == '__main__':
     inp = torch.rand(32,1,120)   
-    net = MyVarAutoEncoder("Vartest", torch.nn.LeakyReLU, 20)
+    net = MyVarAutoEncoder("Vartest", torch.nn.LeakyReLU, 120, 20)
     out = net(inp)    
     
     
