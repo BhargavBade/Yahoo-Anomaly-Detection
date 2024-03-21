@@ -12,7 +12,7 @@ from sklearn import metrics
 from Plotting.anomaly_plot import testdata_plotting
 from torch.distributions import Normal
 
-class VAEAnomalyDetection():
+class BoFVAEAnomalyDetection():
         
     def __init__(self, path, data_config: dict):    
                   
@@ -47,7 +47,7 @@ class VAEAnomalyDetection():
         self.model = torch.load(self.path_bestmodel)
         self.model.eval() 
         
-        self.L = 16              
+        self.L = 10               
         val_data = []
         val_labels = []
         valdata_rec = []    
@@ -61,20 +61,15 @@ class VAEAnomalyDetection():
                 inp = inp.to(DEVICE)
                 test_reconstructions = self.model(inp)
                 
-                #network
-                enc = self.model.encoder(inp)
-                latent_mu = self.model.en_mu(enc)                          
-                latent_logvar = self.model.en_logvar(enc)                    
-                z = self.model.reparameterize(latent_mu, latent_logvar)
-                decoded = self.model.decoder(z)                  
-                recon_mu = self.model.de_mu(decoded)
-                recon_logvar = self.model.de_logvar(decoded)                              
+                # network                
+                recon_mu = self.model(inp) 
+                recon_logvar = self.model(inp)                               
                 recon_stddev = torch.exp(0.5 * recon_logvar)
                 recon_dist = Normal(recon_mu, recon_stddev)
-
+            
                 rec_latent_prob_density = recon_dist.log_prob(inp).exp()
                 rec_latent_probabilities.append(rec_latent_prob_density)
-                                
+                
                 val_data.append(inp) 
                 val_labels.append(labels)
                 valdata_rec.append(test_reconstructions) 
@@ -111,8 +106,8 @@ class VAEAnomalyDetection():
 
             self.threshold = best_threshold
             print("Best F1 Score from val dataset:", best_f1_score, '\n')
-            print("Best Threshold probability from Val Data:", best_threshold, '\n')
-            threshold_txt = "Best Threshold probability from Val Data: " + str(self.threshold)
+            print("Best Threshold prob from Val Data:", best_threshold, '\n')
+            threshold_txt = "Best Threshold prob from Val Data: " + str(self.threshold)
             self.parameter_storage.write_tab("00", str(threshold_txt))
             
         return best_threshold
@@ -126,7 +121,7 @@ class VAEAnomalyDetection():
         self.model = torch.load(self.path_bestmodel)
         self.model.eval()   
         
-        self.L = 16              
+        self.L = 10               
         test_data = []
         test_labels = []
         testdata_rec = []                                          
@@ -137,18 +132,12 @@ class VAEAnomalyDetection():
                 inp = inp.to(torch.float32)
                 inp = inp.to(DEVICE)
                 test_reconstructions = self.model(inp)      
-                
-                # network
-                enc = self.model.encoder(inp)
-                latent_mu = self.model.en_mu(enc)                          
-                latent_logvar = self.model.en_logvar(enc)                   
-                z = self.model.reparameterize(latent_mu, latent_logvar)
-                decoded = self.model.decoder(z)                  
-                recon_mu = self.model.de_mu(decoded)
-                recon_logvar = self.model.de_logvar(decoded)                              
+                # network                
+                recon_mu = self.model(inp) 
+                recon_logvar = self.model(inp)
                 recon_stddev = torch.exp(0.5 * recon_logvar)
                 recon_dist = Normal(recon_mu, recon_stddev)
- 
+
                 rec_latent_prob_density = recon_dist.log_prob(inp).exp()
                 rec_latent_probabilities.append(rec_latent_prob_density)
                 
@@ -229,3 +218,5 @@ class VAEAnomalyDetection():
                               figure_storage = self.figure_storage)
                         
         return actual_labels_tensor, pred_labels_tensor
+
+

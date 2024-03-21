@@ -34,9 +34,6 @@ def testdata_plotting(path,
     predicted_labels = predlab_tensor.cpu().numpy()
 #-----------------------------------------------------------------------------------------------------     
     
-    # test_anm_indices = np.where(testdata_labels == 1)[0] 
-    # pred_anm_indices = np.where(predicted_labels == 1.0)[0]
-    
     # Set the number of plots, sequences, and figures
     figures = 60
     subplots_per_figure = 1
@@ -75,24 +72,12 @@ def testdata_plotting(path,
             ax.scatter(pred_label_indices, pred_label_values, color='green', 
                        marker='x', label='pred anm', s=150)
 
-            # sequence = testdata[ idx:idx + num_sequences]
-            # indices = np.arange( idx, idx  + num_sequences)
-
-            # anomaly_mask = np.isin(indices, test_anm_indices)
-            # pred_anomaly_mask = np.isin(indices, pred_anm_indices)
-
-            # ax.plot(indices, sequence, label='org data')
-
-            # ax.scatter(indices[anomaly_mask], sequence[anomaly_mask], c='red',
-            #            marker='o', label='true anm', alpha=0.5, s=100)
-            # ax.scatter(indices[pred_anomaly_mask], sequence[pred_anomaly_mask], c='green',
-            #            label='pred anm', marker='x', s=150)
-
             ax.legend(fontsize='small', loc="best")
 
             plt.tight_layout()
 
-            figss.append(fig)
-            namess.append(os.path.join("Test", "Sample_" + name))
-        fig_storage.store_multi(figss, namess, folder="", dpis=False)
+        figss.append(fig)
+        namess.append(os.path.join("Test", "Sample_" + name))
+    
+    fig_storage.store_multi(figss, namess, folder="", dpis=False)
  

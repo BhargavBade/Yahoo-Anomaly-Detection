@@ -1,9 +1,7 @@
 import torch
 from ccbdl.network.base import BaseNetwork
-
-from itf_encoder import Encoder
-from itf_decoder import Decoder
-
+from Network.ITF.itf_encoder import Encoder
+from Network.ITF.itf_decoder import Decoder
 from ccbdl.utils import DEVICE
 from Network.ITF import functions as f
 

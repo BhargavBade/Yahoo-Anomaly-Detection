@@ -24,7 +24,6 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
     _save:
         saving e.g. network and storages.
     """
-    # @tracer
     def __init__(self,
                  trial_path: str,
                  trial,
@@ -42,35 +41,34 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
                          path=trial_path, config=config, task=task, debug=debug)
         self.network = network
         self.trial = trial
+        
         self.parameter_storage.equal_signs()
         self.criterion = getattr(torch.nn, self.criterion)()  #For LAE Network
-        # self.criterion = getattr(torch.nn, self.criterion)(reduction = 'sum')
         self.optimizer = getattr(torch.optim, self.optimizer)(
             self.network.parameters(), lr=self.learning_rate)
 
         self.scheduler = getattr(torch.optim.lr_scheduler, self.scheduler)(
             self.optimizer, self.scheduler_step, gamma=self.gamma)
-        # self.plotter.register_custom_plot(ReconstructionPlot(self))
+        
+        self.plotter.register_custom_plot(ReconstructionPlot(self))
         self.plotter.register_custom_plot(StaticReconstructions(self, 6, **kwargs))  #__added_line__
         self.plotter.register_default_plot(ReconstructionLosses(self))
-        
-        self.best_state_dict = None
         
     # @tracer
     def _encode(self, ins):
         ins = ins.to(torch.float32)
-        return self.network.encoder(ins)
+        return self.network(ins)
 
     # @tracer
-    def _decode(self, ins):
-        ins = ins.to(torch.float32)
-        return self.network.decoder(ins)
+    def _decode(self, rec):
+        rec = rec.to(torch.float32)
+        return rec
 
     # @tracer
     def _train_epoch(self, train=True):
         self.network.train() 
-        self.L = 32
         self.prior = Normal(0, 1)
+        kl_weight = 0.2
         losses = 0               
         for _, (inp, _)  in enumerate(self.train_data):
             
@@ -83,23 +81,17 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
             enc = self.network.encoder(inp)
             latent_mu = self.network.en_mu(enc)
             latent_logvar = self.network.en_logvar(enc)
-            latent_logvar = torch.exp(0.5 * latent_logvar)            
-            latent_dist = Normal(latent_mu, latent_logvar)
-            z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
-            z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
+            latent_stddev = torch.exp(0.5 * latent_logvar)            
+            latent_dist = Normal(latent_mu, latent_stddev)                   
+            z = self.network.reparameterize(latent_mu, latent_logvar)
             decoded = self.network.decoder(z)
-            recon_mu = self.network.de_mu(decoded)
-            recon_mu = recon_mu.view(self.L, *inp.shape)
-            recon_logvar = self.network.de_logvar(decoded)
-            recon_logvar = torch.exp(0.5 * recon_logvar)
-            recon_logvar = recon_logvar.view(self.L, *inp.shape)
-            rec_z = self.network.reparameterize(recon_mu, recon_logvar)
-            log_lik = Normal(recon_mu, recon_logvar).log_prob(inp).mean()
+            rec_z = self.network.de_mu(decoded)
+            
+            self.rec_loss = self.criterion(rec_z, inp)
             kl = kl_divergence(latent_dist, self.prior).mean()
-             
-            self.rec_loss = abs(log_lik)
+
             self.kl_divergence_loss = kl
-            self.loss = self.rec_loss + self.kl_divergence_loss
+            self.loss = self.rec_loss + kl_weight*self.kl_divergence_loss
             self.loss.backward() 
             losses+= self.loss
             self.optimizer.step()
@@ -114,11 +106,11 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
     # # @tracer
     def _test_epoch(self):
         self.network.eval()
-        self.L = 16
         self.prior = Normal(0, 1)
+        kl_weight = 0.2
         loss = 0 
         with torch.no_grad():              
-            for _, (inp, _)  in enumerate(self.test_data):
+            for i, (inp, _)  in enumerate(self.test_data):
                 
                 inp = inp.to(torch.float32)
                 inp = inp.to(DEVICE)              
@@ -127,24 +119,19 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
                 enc = self.network.encoder(inp)
                 latent_mu = self.network.en_mu(enc)
                 latent_logvar = self.network.en_logvar(enc)
-                latent_logvar = torch.exp(0.5 * latent_logvar)            
-                latent_dist = Normal(latent_mu, latent_logvar)
-                z = latent_dist.rsample([self.L])  # shape:[self.L,batch_size,1,latent_size]
-                z = z.view(-1, z.size(2), z.size(3))  # shape:[self.L*batch_size,1,latent_size]                    
-                decoded = self.network.decoder(z)
-                recon_mu = self.network.de_mu(decoded)
-                recon_mu = recon_mu.view(self.L, *inp.shape)
-                recon_logvar = self.network.de_logvar(decoded)
-                recon_logvar = torch.exp(0.5 * recon_logvar)
-                recon_logvar = recon_logvar.view(self.L, *inp.shape)
-                rec_z = self.network.reparameterize(recon_mu, recon_logvar)
-                log_lik = Normal(recon_mu, recon_logvar).log_prob(inp).mean()
+                latent_stddev = torch.exp(0.5 * latent_logvar)            
+                latent_dist = Normal(latent_mu, latent_stddev)        
+                z = self.network.reparameterize(latent_mu, latent_logvar)
+                decoded = self.network.decoder(z)               
+                rec_z = self.network.de_mu(decoded)
+                
+                self.rec_loss = self.criterion(rec_z, inp).item()
                 kl = kl_divergence(latent_dist, self.prior).mean()
-
-                self.rec_loss = abs(log_lik)        
+        
                 self.kl_divergence_loss = kl  
-                self.loss = self.rec_loss + self.kl_divergence_loss
-                loss+= self.loss            
+                self.loss = self.rec_loss + kl_weight * self.kl_divergence_loss
+                loss+= self.loss    
+                
                             
         self.test_loss = loss / len(self.test_data)
         
@@ -168,6 +155,12 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
             self.best_values["Epoch"] = self.epoch
 
             self.best_state_dict = self.network.state_dict()
+            
+    # @tracer
+    def evaluate(self):
+        self.data_storage.store([self.epoch, self.batch, self.loss, self.kl_divergence_loss, 
+                                 self.test_loss], force=self.batch)
+        self._hook_every_epoch() 
 
     # @tracer
     def _save(self):
@@ -186,14 +179,7 @@ class LearnVarAutoEncoder(BaseAutoEncoderLearning):
 
         self.parameter_storage.store(self.best_values, "best_values")        
         self.parameter_storage.write_tab("Network", str(self.network))
-        self.best_state_dict = self.network.state_dict()
-    
-    # @tracer
-    def evaluate(self):
-        self.data_storage.store([self.epoch, self.batch, self.loss, self.kl_divergence_loss, 
-                                 self.test_loss], force=self.batch)
-        self._hook_every_epoch() 
         
-        # Pass the best_state_dict back to the MyOptimizer class
-        return self.best_state_dict        
+        # save best values but not model dict
+        self.parameter_storage.store({k: self.best_values[k] for k in self.best_values.keys() - {'model_state_dict'}}, header="Best Values")
         

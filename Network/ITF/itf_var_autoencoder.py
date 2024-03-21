@@ -1,9 +1,7 @@
 import torch
 from ccbdl.network.base import BaseNetwork
-
-from itf_vae_encoder import VarEncoder
-from itf_vae_decoder import VarDecoder
-
+from Network.ITF.itf_vae_encoder import VarEncoder
+from Network.ITF.itf_vae_decoder import VarDecoder
 from ccbdl.utils import DEVICE
 from Network.ITF import functions as f
 
@@ -82,21 +80,30 @@ class VarAutoencoder(BaseNetwork):
     def encode(self, inp: torch.tensor):
         return self.encoder(inp)
 
-    def decode(self, ls: torch.tensor):
-        return self.decoder(*ls)
+    def decode(self, zf_ls: torch.tensor, zp_ls: torch.tensor):
+        return self.decoder(zf_ls, zp_ls)
        
-
+        
+    def kl_zf(self):
+          return self.encoder.kl_zf 
+      
+    def zp_latent(self,inp: torch.tensor):
+        inp = inp.to(torch.float32)        
+        zf_ls, zp_ls, kl_loss = self.encode(inp)
+        return zp_ls
+          
+          
     def forward(self, inp: torch.tensor, test=False, get_ls = False):
         # encoder
-        ls = self.encode(inp)
-        out = self.decode(ls)
+        zf_ls, zp_ls, kl_loss = self.encode(inp)
+        out = self.decode(zf_ls, zp_ls)
         
         if test:
-            info = get_info(*ls, self.function_pool)
+            info = get_info(zf_ls, zp_ls, self.function_pool)
             return out, info
         
         if get_ls:
-            return out, (self.function_pool,*ls)
+            return out, (self.function_pool, zf_ls, zp_ls)
         
         return out
 
@@ -132,9 +139,10 @@ if __name__ == '__main__':
     plt.show()
     
     
-    zf, zp = net.encode(data)
+    zf, zp, kl_loss = net.encode(data)
     print(zf)
     print(zp)
+    print(kl_loss)
     
     # get info
     text = get_info(zf,zp,function_pool)

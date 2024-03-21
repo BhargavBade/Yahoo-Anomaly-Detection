@@ -11,8 +11,6 @@ class MyVarAutoEncoder(BaseNetwork):
         super().__init__(name, debug)
         
         self.encoder = nn.Sequential(
-            # nn.Linear(120,100),
-            # act_function(),
             nn.Linear(input_size,80),
             # act_function(),    
             nn.Linear(80,64),
@@ -55,7 +53,7 @@ class MyVarAutoEncoder(BaseNetwork):
             recon_mu =  self.de_mu(decoded)
             recon_logvar = self.de_logvar(decoded)
             self.kl_value = self.kl(latent_mu,latent_logvar)
-            rec_z = self.reparameterize(recon_mu, recon_logvar)
+            rec_z = self.de_mu(decoded)
             return rec_z
     
             

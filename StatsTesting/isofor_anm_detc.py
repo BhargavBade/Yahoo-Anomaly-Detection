@@ -32,7 +32,7 @@ class AnomalyDetection_ISOFOR(BaseAnomalyStats):
     def learning(self):
         
       # Creating an Isolation Forest model
-      self.isolation_forest = IsolationForest(n_estimators=100, # no.of trees in the forest
+      self.isolation_forest = IsolationForest(n_estimators=300, # no.of trees in the forest
                                               max_samples=256, # max no.of data points that the tree should build on 
                                               contamination='auto', # estimate of perctg of anomaly
                                               random_state=42) #   
@@ -60,7 +60,7 @@ class AnomalyDetection_ISOFOR(BaseAnomalyStats):
         
         current_value = start
         while current_value >= end:
-            # print(current_value)
+
             threshold_val = float(current_value)
             anomaly_val = pd.Series(anomaly_scores_val) < (threshold_val)
             preds_val = anomaly_val.map(lambda x: 1.0 if x == True else 0.0)   

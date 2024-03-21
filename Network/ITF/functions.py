@@ -60,7 +60,7 @@ class Sin(Function):
         if rescale:
             inp_min, inp_max = (0,1)
             self.a1_min, self.a1_max = (0, 1)                               # amplitude
-            self.a2_min, self.a2_max = (0.2*(2*m.pi)/TMAX, 10*(2*m.pi)/TMAX) # frequency number of oscillations (cycles) that occur each second of time.
+            self.a2_min, self.a2_max = (0.2*(2*m.pi)/TMAX, 2*(2*m.pi)/TMAX) # frequency number of oscillations (cycles) that occur each second of time.
             self.a3_min, self.a3_max = (0, 2*m.pi)                          # phase
             a1 = self.a1_min+(self.a1_max-self.a1_min)*(a1-inp_min)/(inp_max-inp_min)
             a2 = self.a2_min+(self.a2_max-self.a2_min)*(a2-inp_min)/(inp_max-inp_min)

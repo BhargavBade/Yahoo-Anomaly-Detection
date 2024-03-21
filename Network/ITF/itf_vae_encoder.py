@@ -2,10 +2,10 @@
 import torch
 import torch.nn as nn
 from collections import OrderedDict
-# from Network.ITF.itf_backbone import Backbone
-from Network.ITF.itf_function_head import FunctionHead
-from Network.ITF.itf_param_head import ParameterHead
-
+import torch.distributions
+from Network.ITF.itf_vae_function_head import VAEFunctionHead
+from Network.ITF.itf_vae_param_head import VAEParameterHead
+from torch.distributions import Normal, kl_divergence
 from ccbdl.utils import DEVICE
 
 
@@ -20,11 +20,7 @@ class VarEncoder(nn.Module):
 
         super().__init__()
         self.pass_z = pass_z
-        
-        # create backbone
-        
-        # self.backbone = Backbone(inp_size)
-        
+        self.N = torch.distributions.Normal(0, 1)    
         self.out_size = inp_size//4
         
         self.backbone = nn.Sequential(OrderedDict([
@@ -43,21 +39,18 @@ class VarEncoder(nn.Module):
             parameter_head_input = self.out_size
 
         # create function head
-        self.function_head = FunctionHead(self.out_size,
+        self.function_head = VAEFunctionHead(self.out_size,
                                           num_functions,
                                           attention,
                                           k)
         
         # create parameter head
-        self.parameter_head = ParameterHead(parameter_head_input,
+        self.parameter_head = VAEParameterHead(parameter_head_input,
                                             num_parameters)
-        
-    def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        z_reparametrized = mu + eps * std
-        return z_reparametrized    
+    
 
+    def dkl_normal(mu, sigma):
+        return -0.5* (1+ torch.log(sigma**2) - mu**2 - sigma**2)
 
     def forward(self, inp: torch.tensor):
         # backbone
@@ -65,17 +58,18 @@ class VarEncoder(nn.Module):
 
         # function head
         zf = self.function_head(out_b)
-
+        
         if self.pass_z:
             out_b = torch.cat((out_b, zf), dim=-1)
         
         # parameter head
-        latent_mu = out_b
-        latent_logvar = out_b
-        z = self.reparameterize(latent_mu, latent_logvar)
-        zp = self.parameter_head(z)
-
-        return zf, zp
+        zp_lat_mu, zp_lat_logvar = self.parameter_head(out_b)
+        zp = zp_lat_mu + zp_lat_logvar *self.N.sample(zp_lat_mu.shape).to(DEVICE) 
+        
+        #kl div loss
+        self.kl_zf =  VarEncoder.dkl_normal(zp_lat_mu, zp_lat_logvar)
+        
+        return zf, zp, self.kl_zf 
 
 
 if __name__ == '__main__':
@@ -98,7 +92,7 @@ if __name__ == '__main__':
                  k,
                  pass_z).to(DEVICE)
 
-    zf,  zp = net(data)
+    zf, zp, kl_loss = net(data)
 
     print(net)
     print("Input Size: \t\t", data.shape)

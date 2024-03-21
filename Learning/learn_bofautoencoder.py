@@ -7,7 +7,7 @@ from ccbdl.evaluation.plotting.reconstruct import StaticReconstructions
 from Plotting.reconstruction_info import ReconstructionInfo
 from Plotting.reconstruction_plot import ReconstructionPlot
 
-class LearnAutoEncoder(BaseAutoEncoderLearning):
+class LearnBoFAutoEncoder(BaseAutoEncoderLearning):
     """
     
     Abstractmethods

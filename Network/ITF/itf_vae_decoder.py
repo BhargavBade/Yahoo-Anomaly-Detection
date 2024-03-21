@@ -23,6 +23,7 @@ class VarDecoder(nn.Module):
 
         # check format of function pool
         assert type(function_pool[0]) == tuple, "No Parameters Given in Pool Definition"
+   
 
     def decode(self, 
                zf: torch.tensor, 
@@ -30,6 +31,8 @@ class VarDecoder(nn.Module):
 
         out = torch.zeros(1, requires_grad=True, device=DEVICE)
         p_idx = 0
+        zp =  nn.Sigmoid()(zp)
+
         # other functions
         for i in range(0,len(self.function_pool)):
             out = out + self.function_pool[i][0](*get_params(p_idx,self.function_pool[i][1],zp),
@@ -41,7 +44,7 @@ class VarDecoder(nn.Module):
 
     def forward(self, zf, zp):
         return self.decode(zf,zp)
-
+    
 
 if __name__ == '__main__':
 
@@ -75,6 +78,6 @@ if __name__ == '__main__':
 
     
     import matplotlib.pyplot as plt
-    plt.plot(out[0,0].detach().cpu())
+    plt.plot(out[0][0,0].detach().cpu())
 
     plt.show()

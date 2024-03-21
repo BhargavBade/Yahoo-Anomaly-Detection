@@ -4,21 +4,16 @@ import matplotlib.pyplot as plt
 from ccbdl.utils import DEVICE
 from ccbdl.storages import storages
 
-def visualize_latent_space(path,train_data,network,learner):
+def visualize_varbof_latent_space(path,train_data,network,learner):
     
     figure_storage = storages.FigureStorage(path, dpi=300, types=("png", "pdf"))
     latent_space = [] 
         
     with torch.no_grad():
         for _, (inp, labels) in enumerate(train_data):
-            inp = inp.to(DEVICE)
-            inp = inp.to(torch.float32)
-            enc = network.encoder(inp)
-            mu = network.en_mu(enc)
-            logvar = network.en_logvar(enc)
-            z = network.reparameterize(mu, logvar)
+            inputs = inp.to(DEVICE)
+            z = network.latent_plotting(inputs)
             latent_space.append(z)
-            
         
     latent_space = torch.cat(latent_space, dim=0)
     latent_space = latent_space.reshape(latent_space.shape[0],-1)
@@ -39,3 +34,4 @@ def visualize_latent_space(path,train_data,network,learner):
         figs.append(fig)
         names.append(os.path.join("Latent_Space","Lt_sp_" + name))
     figure_storage.store_multi(figs, names, folder="", dpis=False)    
+

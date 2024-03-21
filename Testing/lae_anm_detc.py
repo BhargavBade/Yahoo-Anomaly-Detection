@@ -59,8 +59,7 @@ class LAEAnomalyDetection():
                 reconstructions = self.model(inp) 
                                 
                 # loss                                       
-                loss = loss_crit(reconstructions, inp) 
-                # val_reconstruction_error.append(loss.item()) #For getting single loss value for whole batch 
+                loss = loss_crit(reconstructions, inp)               
                 val_reconstruction_error.append(loss)
                 val_labels.append(labels)
             #------------------------------------------------------------------------------------------------------ 
@@ -125,7 +124,7 @@ class LAEAnomalyDetection():
                 # network
                 test_reconstructions = self.model(inp)                                               
                 testdata_rec.append(test_reconstructions)  
-                # test_rec_error.append(loss_test.item()) #For getting single loss value for whole batch                 
+                   
                 # loss   
                 loss_test = loss_crit_test(test_reconstructions, inp)
                 test_rec_error.append(loss_test)                              
@@ -133,7 +132,6 @@ class LAEAnomalyDetection():
                 test_labels.append(labels) 
             self.testdata_rec = torch.cat(testdata_rec, dim = 0).to(DEVICE)
             
-            # testdata_rec_array = self.testdata_rec.cpu() 
             self.test_data_tensor = torch.cat(test_data, dim = 0)
             self.test_labels = torch.cat(test_labels)
             test_rec_error_tensor = torch.cat(test_rec_error, dim=0).to(DEVICE)                       

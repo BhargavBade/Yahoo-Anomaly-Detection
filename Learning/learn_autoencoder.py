@@ -41,6 +41,7 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
                          path=trial_path, config=config, task=task, debug=debug)
         self.network = network
         self.trial = trial
+        
         self.parameter_storage.equal_signs()
         self.criterion = getattr(torch.nn, self.criterion)()  #For LAE Network
         self.optimizer = getattr(torch.optim, self.optimizer)(
@@ -48,12 +49,11 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
 
         self.scheduler = getattr(torch.optim.lr_scheduler, self.scheduler)(
             self.optimizer, self.scheduler_step, gamma=self.gamma)
-        # self.plotter.register_custom_plot(ReconstructionPlot(self))
+        
+        self.plotter.register_custom_plot(ReconstructionPlot(self))
         self.plotter.register_custom_plot(StaticReconstructions(self, 8, **kwargs))  #__added_line__
         self.plotter.register_default_plot(ReconstructionLosses(self))
-        
-        self.best_state_dict = None
-        
+                
     # @tracer
     def _encode(self, ins):
         ins = ins.to(torch.float32)
@@ -124,7 +124,13 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
             self.best_values["Epoch"] = self.epoch
 
             self.best_state_dict = self.network.state_dict()
-
+    
+    # @tracer
+    def evaluate(self):
+        self.data_storage.store([self.epoch, self.batch, self.loss, 
+                                 self.test_loss], force=self.batch)
+        self._hook_every_epoch() 
+        
     # @tracer
     def _save(self):
 
@@ -142,14 +148,7 @@ class LearnAutoEncoder(BaseAutoEncoderLearning):
 
         self.parameter_storage.store(self.best_values, "best_values")        
         self.parameter_storage.write_tab("Network", str(self.network))
-        self.best_state_dict = self.network.state_dict()
-    
-    # @tracer
-    def evaluate(self):
-        self.data_storage.store([self.epoch, self.batch, self.loss, 
-                                 self.test_loss], force=self.batch)
-        self._hook_every_epoch() 
-        
-        # Pass the best_state_dict back to the MyOptimizer class
-        return self.best_state_dict        
+       
+        # save best values but not model dict
+        self.parameter_storage.store({k: self.best_values[k] for k in self.best_values.keys() - {'model_state_dict'}}, header="Best Values")
         
